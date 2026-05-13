@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "xenom-manager-placeholder",
-    "storage_bucket": "xenom-manager-placeholder.appspot.com"
+    "project_number": "294370111349",
+    "project_id": "xenom-manager",
+    "storage_bucket": "xenom-manager.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:294370111349:android:ea33d5340ba4b404316d3c",
         "android_client_info": {
           "package_name": "ru.sesdnr.admin"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "REPLACE_WITH_REAL_FIREBASE_KEY"
+          "current_key": "AIzaSyDe831oufnkFfZx6Sfx52MijLgsdec1qLE"
         }
       ],
       "services": {
