@@ -12,7 +12,7 @@ import type { Message } from '@/lib/types'
 
 export default function ChatScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>()
-  const { settings, messages: storeMessages, setMessages, addMessage, sessions } = useStore()
+  const { settings, messages: storeMessages, setMessages, addMessage, replaceMessage, sessions } = useStore()
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [lastId, setLastId] = useState<string | null>(null)
@@ -85,7 +85,7 @@ export default function ChatScreen() {
     try {
       const saved = await sendMessage(sessionId, text, settings.adminName)
       await upsertMessage(saved)
-      addMessage(saved)
+      replaceMessage(tempMsg.id, saved)
       setLastId(saved.id)
     } catch {
       Alert.alert('Ошибка', 'Не удалось отправить сообщение')

@@ -29,6 +29,8 @@
           "color": "#7C3AED"
         }
       ],
+      "expo-task-manager",
+      "expo-background-fetch",
       "expo-font"
     ],
     "scheme": "xenom-manager",

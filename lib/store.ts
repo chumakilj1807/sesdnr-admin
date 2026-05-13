@@ -26,6 +26,7 @@ interface AppState {
   setSessions: (s: ChatSession[]) => void
   setMessages: (sessionId: string, msgs: Message[]) => void
   addMessage: (msg: Message) => void
+  replaceMessage: (tempId: string, real: Message) => void
   clearNewBookings: () => void
   clearNewMessages: () => void
   incrementNewBookings: () => void
@@ -160,17 +161,26 @@ export const useStore = create<AppState>((set, get) => ({
   setMessages: (sessionId, msgs) =>
     set((s) => ({ messages: { ...s.messages, [sessionId]: msgs } })),
   addMessage: (msg) =>
-    set((s) => ({
-      messages: {
-        ...s.messages,
-        [msg.sessionId]: [...(s.messages[msg.sessionId] ?? []), msg],
-      },
-      sessions: s.sessions.map((sess) =>
-        sess.id === msg.sessionId
-          ? { ...sess, lastMessage: msg.text, lastMessageAt: msg.createdAt, lastSender: msg.sender }
-          : sess
-      ),
-    })),
+    set((s) => {
+      const existing = s.messages[msg.sessionId] ?? []
+      if (existing.some((m) => m.id === msg.id)) return s
+      return {
+        messages: { ...s.messages, [msg.sessionId]: [...existing, msg] },
+        sessions: s.sessions.map((sess) =>
+          sess.id === msg.sessionId
+            ? { ...sess, lastMessage: msg.text, lastMessageAt: msg.createdAt, lastSender: msg.sender }
+            : sess
+        ),
+      }
+    }),
+  replaceMessage: (tempId, real) =>
+    set((s) => {
+      const existing = s.messages[real.sessionId] ?? []
+      const without = existing.filter((m) => m.id !== tempId && m.id !== real.id)
+      return {
+        messages: { ...s.messages, [real.sessionId]: [...without, real] },
+      }
+    }),
 
   clearNewBookings: () => set({ newBookingsCount: 0 }),
   clearNewMessages: () => set({ newMessagesCount: 0 }),

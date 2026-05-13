@@ -1,10 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import {
   View, Text, FlatList, StyleSheet, RefreshControl,
-  TouchableOpacity, TextInput, AppState,
+  TouchableOpacity, TextInput,
 } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import { C, STATUS_COLOR, STATUS_LABEL } from '@/constants/Colors'
+import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { fetchBookings, patchBooking } from '@/lib/api'
 import { getBookings, upsertBooking, updateBookingLocal } from '@/lib/db'
@@ -20,13 +20,13 @@ const FILTERS = [
 ]
 
 export default function BookingsScreen() {
-  const { bookings, setBookings, updateBooking, clearNewBookings, settings } = useStore()
+  const { bookings, setBookings, updateBooking, clearNewBookings, incrementNewBookings } = useStore()
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const knownIds = useRef<Set<string>>(new Set())
-  const appState = useRef(AppState.currentState)
+  const initialized = useRef(false)
 
   const loadFromDb = async () => {
     const local = await getBookings()
@@ -41,13 +41,16 @@ export default function BookingsScreen() {
       setBookings(await getBookings())
       setError('')
 
-      // Notify about new bookings
-      const isBackground = appState.current !== 'active'
-      const newOnes = remote.filter((b) => !knownIds.current.has(b.id) && b.status === 'new')
-      if (newOnes.length > 0 && isBackground) {
-        await notifyNewBooking(newOnes.length)
+      if (initialized.current) {
+        const newOnes = remote.filter((b) => !knownIds.current.has(b.id) && b.status === 'new')
+        if (newOnes.length > 0) {
+          for (let i = 0; i < newOnes.length; i++) incrementNewBookings()
+          await notifyNewBooking(newOnes.length)
+        }
       }
+
       for (const b of remote) knownIds.current.add(b.id)
+      initialized.current = true
     } catch {
       setError('Нет связи с сервером. Данные из кэша.')
     }
@@ -56,17 +59,12 @@ export default function BookingsScreen() {
   useFocusEffect(
     useCallback(() => {
       clearNewBookings()
-      loadFromDb().then(() => syncFromServer())
-      const interval = setInterval(syncFromServer, 8000)
-
-      const sub = AppState.addEventListener('change', (next) => {
-        appState.current = next
+      loadFromDb().then(() => {
+        initialized.current = true
+        syncFromServer()
       })
-
-      return () => {
-        clearInterval(interval)
-        sub.remove()
-      }
+      const interval = setInterval(syncFromServer, 8000)
+      return () => clearInterval(interval)
     }, [])
   )
 
@@ -98,7 +96,6 @@ export default function BookingsScreen() {
 
   return (
     <View style={s.container}>
-      {/* Header */}
       <View style={s.header}>
         <View style={s.logoWrap}>
           <Text style={s.logoX}>X</Text>
@@ -116,7 +113,6 @@ export default function BookingsScreen() {
         </View>
       ) : null}
 
-      {/* Search */}
       <View style={s.searchWrap}>
         <Text style={s.searchIcon}>🔍</Text>
         <TextInput
@@ -128,7 +124,6 @@ export default function BookingsScreen() {
         />
       </View>
 
-      {/* Filter tabs */}
       <View style={s.filters}>
         {FILTERS.map((f) => {
           const count = f.key === 'all' ? bookings.length : bookings.filter((b) => b.status === f.key).length
@@ -148,7 +143,6 @@ export default function BookingsScreen() {
         })}
       </View>
 
-      {/* List */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -177,7 +171,6 @@ const s = StyleSheet.create({
   logoWrap: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 6,
     elevation: 6,
   },
   logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },

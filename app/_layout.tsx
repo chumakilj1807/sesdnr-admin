@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar'
 import * as Notifications from 'expo-notifications'
 import { useStore } from '@/lib/store'
 import { setupNotifications } from '@/lib/notifications'
+import { registerBackgroundSync } from '@/lib/backgroundTask'
 
 export default function RootLayout() {
   const { initSettings, initialized, settings } = useStore()
@@ -13,6 +14,7 @@ export default function RootLayout() {
   useEffect(() => {
     initSettings()
     setupNotifications()
+    registerBackgroundSync()
 
     notifListener.current = Notifications.addNotificationReceivedListener(() => {})
 

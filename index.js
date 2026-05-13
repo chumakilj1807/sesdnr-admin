@@ -1,1 +1,2 @@
-import 'expo-router/entry';
+import './lib/backgroundTask'
+import 'expo-router/entry'

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { View, Text, FlatList, StyleSheet, RefreshControl, AppState } from 'react-native'
+import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
@@ -9,11 +9,12 @@ import ChatItem from '@/components/ChatItem'
 import { notifyNewMessage } from '@/lib/notifications'
 
 export default function ChatsScreen() {
-  const { sessions, setSessions, clearNewMessages } = useStore()
+  const { sessions, setSessions, clearNewMessages, incrementNewMessages } = useStore()
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const knownIds = useRef<Set<string>>(new Set())
-  const appState = useRef(AppState.currentState)
+  // tracks lastMessageAt per sessionId so we detect new messages reliably
+  const lastSeenAt = useRef<Map<string, string | null>>(new Map())
+  const initialized = useRef(false)
 
   const sync = async () => {
     try {
@@ -23,24 +24,25 @@ export default function ChatsScreen() {
       setSessions(local)
       setError('')
 
-      // Notify about truly new sessions (new user messages)
-      const isBackground = appState.current !== 'active'
       for (const s of remote) {
-        if (!knownIds.current.has(s.id) && s.lastSender === 'user') {
-          if (isBackground) {
+        const prev = lastSeenAt.current.get(s.id)
+        const isNew = !lastSeenAt.current.has(s.id)
+
+        if (initialized.current) {
+          const hasNewMsg =
+            (isNew && s.lastSender === 'user') ||
+            (!isNew && s.lastSender === 'user' && s.lastMessageAt !== prev)
+
+          if (hasNewMsg) {
+            incrementNewMessages()
             await notifyNewMessage(s.id, s.lastMessage ?? undefined)
           }
-          knownIds.current.add(s.id)
-        } else if (knownIds.current.has(s.id) && s.lastSender === 'user') {
-          // Existing session got a new user message - check via lastMessageAt
-          const existing = sessions.find((x) => x.id === s.id)
-          if (existing && existing.lastMessageAt !== s.lastMessageAt && isBackground) {
-            await notifyNewMessage(s.id, s.lastMessage ?? undefined)
-          }
-        } else {
-          knownIds.current.add(s.id)
         }
+
+        lastSeenAt.current.set(s.id, s.lastMessageAt)
       }
+
+      initialized.current = true
     } catch {
       setError('Нет связи · данные из кэша')
       setSessions(await getSessions())
@@ -52,15 +54,7 @@ export default function ChatsScreen() {
       clearNewMessages()
       sync()
       const t = setInterval(sync, 6000)
-
-      const sub = AppState.addEventListener('change', (next) => {
-        appState.current = next
-      })
-
-      return () => {
-        clearInterval(t)
-        sub.remove()
-      }
+      return () => clearInterval(t)
     }, [])
   )
 
@@ -123,7 +117,6 @@ const s = StyleSheet.create({
   logoWrap: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 6,
     elevation: 6,
   },
   logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
