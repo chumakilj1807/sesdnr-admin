@@ -9,12 +9,17 @@ import { registerPushToken } from '@/lib/api'
 
 async function registerFcmToken() {
   try {
+    console.log('[FCM] Requesting push token...')
     const token = await Notifications.getDevicePushTokenAsync()
+    console.log('[FCM] Got token type:', token?.type, 'data length:', token?.data?.length)
     if (token?.data) {
       await registerPushToken(token.data)
+      console.log('[FCM] Token registered with server OK')
+    } else {
+      console.warn('[FCM] Token is empty or null')
     }
-  } catch {
-    // Firebase not configured yet — silent fail
+  } catch (e: any) {
+    console.error('[FCM] registerFcmToken error:', e?.message ?? e)
   }
 }
 
@@ -24,11 +29,15 @@ export default function RootLayout() {
   const responseListener = useRef<Notifications.EventSubscription>()
 
   useEffect(() => {
-    initSettings().then(() => {
-      registerFcmToken()
-    })
-    setupNotifications()
-    registerBackgroundSync()
+    async function boot() {
+      await initSettings()
+      // Request permissions first, then get FCM token
+      const granted = await setupNotifications()
+      console.log('[FCM] Notification permission:', granted)
+      registerBackgroundSync()
+      await registerFcmToken()
+    }
+    boot()
 
     notifListener.current = Notifications.addNotificationReceivedListener(() => {})
 
