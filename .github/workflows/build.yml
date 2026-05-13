@@ -37,8 +37,8 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
 
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
+      - name: Build debug APK (with bundled JS)
+        run: cd android && ./gradlew assembleDebug -PbundleInDebug=true --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
