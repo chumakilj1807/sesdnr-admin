@@ -80,6 +80,7 @@ export default function BookingsScreen() {
     <View style={s.container}>
       {/* Header */}
       <View style={s.header}>
+        <Text style={s.logoX}>X</Text>
         <View>
           <Text style={s.title}>Заявки</Text>
           <Text style={s.sub}>{bookings.length} всего · {newCount} новых</Text>
@@ -147,10 +148,11 @@ export default function BookingsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
-    paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
   },
-  title: { fontSize: 28, fontWeight: '700', color: C.text },
+  logoX: { width: 40, height: 40, lineHeight: 40, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#fff', backgroundColor: '#7C3AED', borderRadius: 10, overflow: 'hidden' },
+  title: { fontSize: 24, fontWeight: '800', color: C.text },
   sub: { fontSize: 13, color: C.textMuted, marginTop: 2 },
   errorBanner: { backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10, padding: 10, marginBottom: 4 },
   errorText: { color: C.error, fontSize: 13 },

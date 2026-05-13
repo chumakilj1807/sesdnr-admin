@@ -1,96 +1,107 @@
 import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView,
+  ScrollView,
 } from 'react-native'
 import { router } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
+import type { Site } from '@/lib/types'
 
 export default function SetupScreen() {
-  const { saveSettings } = useStore()
-  const [name, setName] = useState('')
+  const { saveSettings, addSite } = useStore()
+  const [adminName, setAdminName] = useState('')
+  const [siteName, setSiteName] = useState('Основной сайт')
   const [serverUrl, setServerUrl] = useState('http://192.168.1.100:3001')
   const [token, setToken] = useState('sesdnr-app-2026')
   const [error, setError] = useState('')
 
   const handleSave = async () => {
-    if (!name.trim()) { setError('Введите имя администратора'); return }
+    if (!adminName.trim()) { setError('Введите имя администратора'); return }
     if (!serverUrl.trim()) { setError('Введите адрес сервера'); return }
 
-    await saveSettings({
-      adminName: name.trim(),
+    const newSite: Site = {
+      id: `site_${Date.now()}`,
+      name: siteName.trim() || 'Основной сайт',
       serverUrl: serverUrl.trim(),
       token: token.trim(),
-      setupDone: true,
-    })
+    }
 
+    await saveSettings({ adminName: adminName.trim(), setupDone: true, sites: [newSite], currentSiteId: newSite.id })
     router.replace('/(tabs)')
   }
 
   return (
-    <KeyboardAvoidingView
+    <ScrollView
       style={{ flex: 1, backgroundColor: C.bg }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      contentContainerStyle={s.container}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
-        {/* Logo area */}
-        <View style={s.logoArea}>
-          <View style={s.logoCircle}>
-            <Text style={s.logoIcon}>🛡️</Text>
-          </View>
-          <Text style={s.logoTitle}>СЭС Администратор</Text>
-          <Text style={s.logoSub}>Настройте приложение для начала работы</Text>
+      <View style={s.logoArea}>
+        <View style={s.logoCircle}>
+          <Text style={s.logoX}>X</Text>
         </View>
+        <Text style={s.logoTitle}>Xenom Manager</Text>
+        <Text style={s.logoSub}>Настройте приложение для начала работы</Text>
+      </View>
 
-        {/* Form */}
-        <View style={s.card}>
-          <Text style={s.sectionLabel}>ВАШ ПРОФИЛЬ</Text>
+      <View style={s.card}>
+        <Text style={s.sectionLabel}>ПРОФИЛЬ</Text>
 
-          <Text style={s.label}>Имя администратора</Text>
-          <TextInput
-            style={s.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Например: Владислав"
-            placeholderTextColor={C.textMuted}
-            autoCapitalize="words"
-          />
-          <Text style={s.hint}>Будет отображаться в чате с клиентами</Text>
+        <Text style={s.label}>Имя администратора</Text>
+        <TextInput
+          style={s.input}
+          value={adminName}
+          onChangeText={setAdminName}
+          placeholder="Например: Владислав"
+          placeholderTextColor={C.textMuted}
+          autoCapitalize="words"
+        />
+        <Text style={s.hint}>Отображается клиентам в чате</Text>
+      </View>
 
-          <View style={s.divider} />
-          <Text style={s.sectionLabel}>ПОДКЛЮЧЕНИЕ К СЕРВЕРУ</Text>
+      <View style={s.card}>
+        <Text style={s.sectionLabel}>ПЕРВЫЙ САЙТ</Text>
 
-          <Text style={s.label}>IP и порт сервера</Text>
-          <TextInput
-            style={s.input}
-            value={serverUrl}
-            onChangeText={setServerUrl}
-            placeholder="http://192.168.1.100:3001"
-            placeholderTextColor={C.textMuted}
-            autoCapitalize="none"
-            keyboardType="url"
-          />
-          <Text style={s.hint}>Локальный IP вашего компьютера в сети WiFi</Text>
+        <Text style={s.label}>Название сайта</Text>
+        <TextInput
+          style={s.input}
+          value={siteName}
+          onChangeText={setSiteName}
+          placeholder="Основной сайт"
+          placeholderTextColor={C.textMuted}
+          autoCapitalize="none"
+        />
 
-          <Text style={s.label}>Токен доступа</Text>
-          <TextInput
-            style={s.input}
-            value={token}
-            onChangeText={setToken}
-            placeholder="sesdnr-app-2026"
-            placeholderTextColor={C.textMuted}
-            autoCapitalize="none"
-          />
-        </View>
+        <Text style={s.label}>Адрес сервера</Text>
+        <TextInput
+          style={s.input}
+          value={serverUrl}
+          onChangeText={setServerUrl}
+          placeholder="http://192.168.1.100:3001"
+          placeholderTextColor={C.textMuted}
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+        <Text style={s.hint}>Локальный IP компьютера в сети WiFi</Text>
 
-        {error ? <Text style={s.error}>{error}</Text> : null}
+        <Text style={s.label}>Токен доступа</Text>
+        <TextInput
+          style={s.input}
+          value={token}
+          onChangeText={setToken}
+          placeholder="sesdnr-app-2026"
+          placeholderTextColor={C.textMuted}
+          autoCapitalize="none"
+        />
+      </View>
 
-        <TouchableOpacity style={s.btn} onPress={handleSave} activeOpacity={0.8}>
-          <Text style={s.btnText}>Начать работу →</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {error ? <Text style={s.error}>{error}</Text> : null}
+
+      <TouchableOpacity style={s.btn} onPress={handleSave} activeOpacity={0.8}>
+        <Text style={s.btnText}>Начать работу →</Text>
+      </TouchableOpacity>
+    </ScrollView>
   )
 }
 
@@ -98,12 +109,11 @@ const s = StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 60 },
   logoArea: { alignItems: 'center', marginBottom: 32 },
   logoCircle: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: C.primaryDim, borderWidth: 1, borderColor: C.primary,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+    width: 80, height: 80, borderRadius: 24,
+    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  logoIcon: { fontSize: 32 },
-  logoTitle: { fontSize: 22, fontWeight: '700', color: C.text, marginBottom: 8 },
+  logoX: { fontSize: 42, fontWeight: '900', color: '#fff', letterSpacing: -2 },
+  logoTitle: { fontSize: 26, fontWeight: '800', color: C.text, marginBottom: 6, letterSpacing: -0.5 },
   logoSub: { fontSize: 14, color: C.textSecondary, textAlign: 'center' },
   card: {
     backgroundColor: C.card, borderRadius: 16,
@@ -117,11 +127,10 @@ const s = StyleSheet.create({
     fontSize: 15, color: C.text, marginBottom: 8,
   },
   hint: { fontSize: 12, color: C.textMuted, marginBottom: 16 },
-  divider: { height: 1, backgroundColor: C.border, marginVertical: 16 },
   error: { color: C.error, textAlign: 'center', marginBottom: 12, fontSize: 14 },
   btn: {
-    backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16,
-    alignItems: 'center', marginTop: 8,
+    backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', marginTop: 8, marginBottom: 40,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 })

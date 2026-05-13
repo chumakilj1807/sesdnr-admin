@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { configureApi } from './api'
-import type { Booking, ChatSession, Message, AppSettings } from './types'
+import type { Booking, ChatSession, Message, AppSettings, Site } from './types'
 
 interface AppState {
   settings: AppSettings
@@ -12,8 +12,15 @@ interface AppState {
   newMessagesCount: number
   initialized: boolean
 
+  currentSite: () => Site | null
+
   initSettings: () => Promise<void>
   saveSettings: (s: Partial<AppSettings>) => Promise<void>
+  addSite: (site: Site) => Promise<void>
+  updateSite: (id: string, updates: Partial<Site>) => Promise<void>
+  removeSite: (id: string) => Promise<void>
+  switchSite: (id: string) => Promise<void>
+
   setBookings: (b: Booking[]) => void
   updateBooking: (id: string, status: string, notes?: string) => void
   setSessions: (s: ChatSession[]) => void
@@ -26,10 +33,19 @@ interface AppState {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  serverUrl: 'http://192.168.1.100:3001',
-  token: 'sesdnr-app-2026',
   adminName: '',
   setupDone: false,
+  sites: [],
+  currentSiteId: '',
+}
+
+function applyCurrentSite(settings: AppSettings) {
+  const site = settings.sites.find(s => s.id === settings.currentSiteId)
+  if (site) configureApi(site.serverUrl, site.token)
+}
+
+async function persist(settings: AppSettings) {
+  await SecureStore.setItemAsync('app_settings_v2', JSON.stringify(settings))
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -41,16 +57,46 @@ export const useStore = create<AppState>((set, get) => ({
   newMessagesCount: 0,
   initialized: false,
 
+  currentSite: () => {
+    const { settings } = get()
+    return settings.sites.find(s => s.id === settings.currentSiteId) ?? null
+  },
+
   initSettings: async () => {
     try {
-      const raw = await SecureStore.getItemAsync('app_settings')
-      if (raw) {
-        const saved = JSON.parse(raw) as AppSettings
-        set({ settings: { ...DEFAULT_SETTINGS, ...saved }, initialized: true })
-        configureApi(saved.serverUrl, saved.token)
-      } else {
+      // Try new format first
+      let raw = await SecureStore.getItemAsync('app_settings_v2')
+      if (!raw) {
+        // Migrate old format
+        const oldRaw = await SecureStore.getItemAsync('app_settings')
+        if (oldRaw) {
+          const old = JSON.parse(oldRaw)
+          if (old.serverUrl) {
+            const migratedSite: Site = {
+              id: 'site_default',
+              name: 'Основной сайт',
+              serverUrl: old.serverUrl,
+              token: old.token ?? 'sesdnr-app-2026',
+            }
+            const migrated: AppSettings = {
+              adminName: old.adminName ?? '',
+              setupDone: old.setupDone ?? false,
+              sites: [migratedSite],
+              currentSiteId: 'site_default',
+            }
+            await persist(migrated)
+            set({ settings: migrated, initialized: true })
+            applyCurrentSite(migrated)
+            return
+          }
+        }
         set({ initialized: true })
+        return
       }
+      const saved = JSON.parse(raw) as AppSettings
+      const settings = { ...DEFAULT_SETTINGS, ...saved }
+      set({ settings, initialized: true })
+      applyCurrentSite(settings)
     } catch {
       set({ initialized: true })
     }
@@ -59,8 +105,47 @@ export const useStore = create<AppState>((set, get) => ({
   saveSettings: async (partial) => {
     const next = { ...get().settings, ...partial }
     set({ settings: next })
-    await SecureStore.setItemAsync('app_settings', JSON.stringify(next))
-    configureApi(next.serverUrl, next.token)
+    await persist(next)
+    applyCurrentSite(next)
+  },
+
+  addSite: async (site) => {
+    const settings = get().settings
+    const sites = [...settings.sites, site]
+    const currentSiteId = settings.sites.length === 0 ? site.id : settings.currentSiteId
+    const next = { ...settings, sites, currentSiteId }
+    set({ settings: next })
+    await persist(next)
+    applyCurrentSite(next)
+  },
+
+  updateSite: async (id, updates) => {
+    const settings = get().settings
+    const sites = settings.sites.map(s => s.id === id ? { ...s, ...updates } : s)
+    const next = { ...settings, sites }
+    set({ settings: next })
+    await persist(next)
+    applyCurrentSite(next)
+  },
+
+  removeSite: async (id) => {
+    const settings = get().settings
+    const sites = settings.sites.filter(s => s.id !== id)
+    const currentSiteId = settings.currentSiteId === id
+      ? (sites[0]?.id ?? '')
+      : settings.currentSiteId
+    const next = { ...settings, sites, currentSiteId }
+    set({ settings: next, bookings: [], sessions: [], messages: {} })
+    await persist(next)
+    applyCurrentSite(next)
+  },
+
+  switchSite: async (id) => {
+    const settings = get().settings
+    const next = { ...settings, currentSiteId: id }
+    set({ settings: next, bookings: [], sessions: [], messages: {} })
+    await persist(next)
+    applyCurrentSite(next)
   },
 
   setBookings: (bookings) => set({ bookings }),

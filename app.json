@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "СЭС Админ",
-    "slug": "sesdnr-admin",
+    "name": "Xenom Manager",
+    "slug": "xenom-manager",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0F1A"
       },
-      "package": "ru.sesdnr.admin"
+      "package": "ru.sesdnr.admin",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-router",
@@ -25,11 +26,12 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#1E6FFF"
+          "color": "#7C3AED"
         }
-      ]
+      ],
+      "expo-font"
     ],
-    "scheme": "sesdnr-admin",
+    "scheme": "xenom-manager",
     "experiments": {
       "typedRoutes": true
     }

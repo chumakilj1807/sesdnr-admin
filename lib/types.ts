@@ -1,3 +1,17 @@
+export interface Site {
+  id: string
+  name: string
+  serverUrl: string
+  token: string
+}
+
+export interface AppSettings {
+  adminName: string
+  setupDone: boolean
+  sites: Site[]
+  currentSiteId: string
+}
+
 export interface Booking {
   id: string
   type: 'booking' | 'callback'
@@ -28,11 +42,4 @@ export interface Message {
   text: string
   sender: 'user' | 'admin'
   createdAt: string
-}
-
-export interface AppSettings {
-  serverUrl: string
-  token: string
-  adminName: string
-  setupDone: boolean
 }
