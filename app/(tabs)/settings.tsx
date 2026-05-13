@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
+import { sendTestNotification } from '@/lib/notifications'
 import type { Site } from '@/lib/types'
 
 // Row component OUTSIDE to avoid remount on every keystroke
@@ -179,6 +180,21 @@ export default function SettingsScreen() {
             <Text style={s.addSiteBtnText}>+ Добавить сайт</Text>
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* Notifications test */}
+      <View style={s.card}>
+        <Text style={s.section}>🔔 УВЕДОМЛЕНИЯ</Text>
+        <Text style={s.hint}>Нажмите чтобы проверить что уведомления работают (придёт через 1 сек)</Text>
+        <TouchableOpacity
+          style={[s.saveBtn, { marginTop: 12 }]}
+          onPress={async () => {
+            await sendTestNotification()
+            Alert.alert('Отправлено', 'Уведомление придёт через ~1 секунду')
+          }}
+        >
+          <Text style={s.saveBtnText}>Тест уведомления</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Info */}

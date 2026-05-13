@@ -17,44 +17,77 @@ export async function setupNotifications() {
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#7C3AED',
       sound: 'default',
+      enableVibrate: true,
     })
     await Notifications.setNotificationChannelAsync('chats', {
       name: 'Новые сообщения',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 150, 150, 150],
       lightColor: '#7C3AED',
       sound: 'default',
+      enableVibrate: true,
     })
   }
-
   const { status } = await Notifications.requestPermissionsAsync()
   return status === 'granted'
 }
 
+// On Android 8+, channelId MUST be inside the trigger — not at top level
+function trigger(channelId: string): any {
+  if (Platform.OS === 'android') {
+    return { channelId, seconds: 1, repeats: false }
+  }
+  return null
+}
+
 export async function notifyNewBooking(count: number) {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '📋 Новая заявка',
-      body: count > 1 ? `${count} новых заявок ожидают обработки` : 'Новая заявка ожидает обработки',
-      sound: 'default',
-      data: { screen: 'bookings' },
-    },
-    trigger: null,
-    identifier: `booking_${Date.now()}`,
-    ...(Platform.OS === 'android' ? { channelId: 'bookings' } as any : {}),
-  })
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📋 Новая заявка!',
+        body: count > 1
+          ? `${count} новых заявок ожидают обработки`
+          : 'Поступила новая заявка — нажмите чтобы открыть',
+        sound: true,
+        data: { screen: 'bookings' },
+        priority: 'max',
+      } as any,
+      trigger: trigger('bookings'),
+    })
+  } catch (e) {
+    console.warn('notifyNewBooking failed:', e)
+  }
 }
 
 export async function notifyNewMessage(sessionId: string, preview?: string) {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '💬 Новое сообщение в чате',
-      body: preview ? `${preview.slice(0, 80)}` : 'Клиент написал сообщение',
-      sound: 'default',
-      data: { screen: 'chats', sessionId },
-    },
-    trigger: null,
-    identifier: `msg_${Date.now()}`,
-    ...(Platform.OS === 'android' ? { channelId: 'chats' } as any : {}),
-  })
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '💬 Новое сообщение в чате',
+        body: preview ? preview.slice(0, 80) : 'Клиент написал — нажмите чтобы ответить',
+        sound: true,
+        data: { screen: 'chats', sessionId },
+        priority: 'max',
+      } as any,
+      trigger: trigger('chats'),
+    })
+  } catch (e) {
+    console.warn('notifyNewMessage failed:', e)
+  }
+}
+
+export async function sendTestNotification() {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '✅ Уведомления работают!',
+        body: 'Xenom Manager настроен правильно — уведомления будут приходить',
+        sound: true,
+        priority: 'max',
+      } as any,
+      trigger: trigger('chats'),
+    })
+  } catch (e) {
+    console.warn('testNotification failed:', e)
+  }
 }
