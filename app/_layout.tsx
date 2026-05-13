@@ -7,19 +7,33 @@ import { setupNotifications } from '@/lib/notifications'
 import { registerBackgroundSync } from '@/lib/backgroundTask'
 import { registerPushToken } from '@/lib/api'
 
-async function registerFcmToken() {
+// Passive listener — fires when Firebase generates/refreshes the token
+// This is more reliable than getDevicePushTokenAsync on MIUI
+function setupTokenListener() {
+  const sub = Notifications.addPushTokenListener((tokenData) => {
+    if (tokenData?.data) {
+      console.log('[FCM] Token from listener, type:', tokenData.type, 'len:', tokenData.data.length)
+      registerPushToken(tokenData.data).catch((e) =>
+        console.error('[FCM] registerPushToken error:', e?.message)
+      )
+    }
+  })
+  return sub
+}
+
+async function tryGetFcmToken() {
   try {
-    console.log('[FCM] Requesting push token...')
-    const token = await Notifications.getDevicePushTokenAsync()
-    console.log('[FCM] Got token type:', token?.type, 'data length:', token?.data?.length)
-    if (token?.data) {
-      await registerPushToken(token.data)
-      console.log('[FCM] Token registered with server OK')
+    console.log('[FCM] Calling getDevicePushTokenAsync...')
+    const tokenData = await Notifications.getDevicePushTokenAsync()
+    console.log('[FCM] Got token type:', tokenData?.type, 'len:', tokenData?.data?.length)
+    if (tokenData?.data) {
+      await registerPushToken(tokenData.data)
+      console.log('[FCM] Token sent to server OK')
     } else {
-      console.warn('[FCM] Token is empty or null')
+      console.warn('[FCM] Token data empty')
     }
   } catch (e: any) {
-    console.error('[FCM] registerFcmToken error:', e?.message ?? e)
+    console.error('[FCM] getDevicePushTokenAsync failed:', e?.message ?? String(e))
   }
 }
 
@@ -27,20 +41,29 @@ export default function RootLayout() {
   const { initSettings, initialized, settings } = useStore()
   const notifListener = useRef<Notifications.EventSubscription>()
   const responseListener = useRef<Notifications.EventSubscription>()
+  const tokenListener = useRef<Notifications.EventSubscription>()
 
   useEffect(() => {
-    async function boot() {
-      await initSettings()
-      // Request permissions first, then get FCM token
-      const granted = await setupNotifications()
-      console.log('[FCM] Notification permission:', granted)
-      registerBackgroundSync()
-      await registerFcmToken()
-    }
-    boot()
+    // 1. Set up passive token listener immediately (before any awaits)
+    tokenListener.current = setupTokenListener()
+    console.log('[FCM] Token listener registered')
 
+    // 2. Init settings (independent try/catch so failure doesn't block FCM)
+    initSettings().catch((e) => console.error('[BOOT] initSettings error:', e?.message))
+
+    // 3. Setup notifications channels + permissions (independent)
+    setupNotifications().catch((e) =>
+      console.error('[BOOT] setupNotifications error:', e?.message)
+    )
+
+    // 4. Register background sync
+    try { registerBackgroundSync() } catch {}
+
+    // 5. Try to get FCM token directly (independent of permissions)
+    tryGetFcmToken()
+
+    // 6. Notification event listeners
     notifListener.current = Notifications.addNotificationReceivedListener(() => {})
-
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as any
       if (data?.screen === 'chats' && data?.sessionId) {
@@ -49,6 +72,7 @@ export default function RootLayout() {
     })
 
     return () => {
+      tokenListener.current?.remove()
       notifListener.current?.remove()
       responseListener.current?.remove()
     }
