@@ -1,23 +1,46 @@
-import { useCallback, useState } from 'react'
-import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native'
+import { useCallback, useRef, useState } from 'react'
+import { View, Text, FlatList, StyleSheet, RefreshControl, AppState } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { fetchChats } from '@/lib/api'
 import { getSessions, upsertSession } from '@/lib/db'
 import ChatItem from '@/components/ChatItem'
+import { notifyNewMessage } from '@/lib/notifications'
 
 export default function ChatsScreen() {
   const { sessions, setSessions, clearNewMessages } = useStore()
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const knownIds = useRef<Set<string>>(new Set())
+  const appState = useRef(AppState.currentState)
 
   const sync = async () => {
     try {
       const remote = await fetchChats()
       for (const s of remote) await upsertSession(s)
-      setSessions(await getSessions())
+      const local = await getSessions()
+      setSessions(local)
       setError('')
+
+      // Notify about truly new sessions (new user messages)
+      const isBackground = appState.current !== 'active'
+      for (const s of remote) {
+        if (!knownIds.current.has(s.id) && s.lastSender === 'user') {
+          if (isBackground) {
+            await notifyNewMessage(s.id, s.lastMessage ?? undefined)
+          }
+          knownIds.current.add(s.id)
+        } else if (knownIds.current.has(s.id) && s.lastSender === 'user') {
+          // Existing session got a new user message - check via lastMessageAt
+          const existing = sessions.find((x) => x.id === s.id)
+          if (existing && existing.lastMessageAt !== s.lastMessageAt && isBackground) {
+            await notifyNewMessage(s.id, s.lastMessage ?? undefined)
+          }
+        } else {
+          knownIds.current.add(s.id)
+        }
+      }
     } catch {
       setError('Нет связи · данные из кэша')
       setSessions(await getSessions())
@@ -29,7 +52,15 @@ export default function ChatsScreen() {
       clearNewMessages()
       sync()
       const t = setInterval(sync, 6000)
-      return () => clearInterval(t)
+
+      const sub = AppState.addEventListener('change', (next) => {
+        appState.current = next
+      })
+
+      return () => {
+        clearInterval(t)
+        sub.remove()
+      }
     }, [])
   )
 
@@ -45,8 +76,11 @@ export default function ChatsScreen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <Text style={s.logoX}>X</Text>
+        <View style={s.logoWrap}>
+          <Text style={s.logoX}>X</Text>
+        </View>
         <View>
+          <Text style={s.appName}>Xenom Manager</Text>
           <Text style={s.title}>Чаты</Text>
           <Text style={s.sub}>{active.length} активных · {closed.length} закрытых</Text>
         </View>
@@ -82,10 +116,20 @@ export default function ChatsScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16 },
-  logoX: { width: 40, height: 40, lineHeight: 40, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#fff', backgroundColor: '#7C3AED', borderRadius: 10, overflow: 'hidden' },
-  title: { fontSize: 24, fontWeight: '800', color: C.text },
-  sub: { fontSize: 13, color: C.textMuted, marginTop: 2 },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
+  },
+  logoWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 6,
+    elevation: 6,
+  },
+  logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
+  appName: { fontSize: 11, fontWeight: '700', color: '#7C3AED', letterSpacing: 1, textTransform: 'uppercase' },
+  title: { fontSize: 22, fontWeight: '800', color: C.text },
+  sub: { fontSize: 13, color: C.textMuted, marginTop: 1 },
   errorBanner: { backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10, padding: 10, marginBottom: 4 },
   errorText: { color: C.error, fontSize: 13 },
   empty: { alignItems: 'center', paddingTop: 60 },

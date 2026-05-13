@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   View, Text, FlatList, StyleSheet, RefreshControl,
-  TouchableOpacity, TextInput,
+  TouchableOpacity, TextInput, AppState,
 } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { C, STATUS_COLOR, STATUS_LABEL } from '@/constants/Colors'
@@ -9,6 +9,7 @@ import { useStore } from '@/lib/store'
 import { fetchBookings, patchBooking } from '@/lib/api'
 import { getBookings, upsertBooking, updateBookingLocal } from '@/lib/db'
 import BookingCard from '@/components/BookingCard'
+import { notifyNewBooking } from '@/lib/notifications'
 import type { Booking } from '@/lib/types'
 
 const FILTERS = [
@@ -24,10 +25,13 @@ export default function BookingsScreen() {
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const knownIds = useRef<Set<string>>(new Set())
+  const appState = useRef(AppState.currentState)
 
   const loadFromDb = async () => {
     const local = await getBookings()
     setBookings(local)
+    for (const b of local) knownIds.current.add(b.id)
   }
 
   const syncFromServer = async () => {
@@ -36,7 +40,15 @@ export default function BookingsScreen() {
       for (const b of remote) await upsertBooking(b)
       setBookings(await getBookings())
       setError('')
-    } catch (e) {
+
+      // Notify about new bookings
+      const isBackground = appState.current !== 'active'
+      const newOnes = remote.filter((b) => !knownIds.current.has(b.id) && b.status === 'new')
+      if (newOnes.length > 0 && isBackground) {
+        await notifyNewBooking(newOnes.length)
+      }
+      for (const b of remote) knownIds.current.add(b.id)
+    } catch {
       setError('Нет связи с сервером. Данные из кэша.')
     }
   }
@@ -46,7 +58,15 @@ export default function BookingsScreen() {
       clearNewBookings()
       loadFromDb().then(() => syncFromServer())
       const interval = setInterval(syncFromServer, 8000)
-      return () => clearInterval(interval)
+
+      const sub = AppState.addEventListener('change', (next) => {
+        appState.current = next
+      })
+
+      return () => {
+        clearInterval(interval)
+        sub.remove()
+      }
     }, [])
   )
 
@@ -80,8 +100,11 @@ export default function BookingsScreen() {
     <View style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.logoX}>X</Text>
+        <View style={s.logoWrap}>
+          <Text style={s.logoX}>X</Text>
+        </View>
         <View>
+          <Text style={s.appName}>Xenom Manager</Text>
           <Text style={s.title}>Заявки</Text>
           <Text style={s.sub}>{bookings.length} всего · {newCount} новых</Text>
         </View>
@@ -151,9 +174,16 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
   },
-  logoX: { width: 40, height: 40, lineHeight: 40, textAlign: 'center', fontSize: 22, fontWeight: '900', color: '#fff', backgroundColor: '#7C3AED', borderRadius: 10, overflow: 'hidden' },
-  title: { fontSize: 24, fontWeight: '800', color: C.text },
-  sub: { fontSize: 13, color: C.textMuted, marginTop: 2 },
+  logoWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 6,
+    elevation: 6,
+  },
+  logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
+  appName: { fontSize: 11, fontWeight: '700', color: '#7C3AED', letterSpacing: 1, textTransform: 'uppercase' },
+  title: { fontSize: 22, fontWeight: '800', color: C.text },
+  sub: { fontSize: 13, color: C.textMuted, marginTop: 1 },
   errorBanner: { backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10, padding: 10, marginBottom: 4 },
   errorText: { color: C.error, fontSize: 13 },
   searchWrap: {

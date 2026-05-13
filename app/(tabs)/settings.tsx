@@ -105,10 +105,12 @@ export default function SettingsScreen() {
     >
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerX}>X</Text>
+        <View style={s.headerLogoWrap}>
+          <Text style={s.headerX}>X</Text>
+        </View>
         <View>
-          <Text style={s.headerTitle}>Xenom Manager</Text>
-          <Text style={s.headerSub}>Настройки</Text>
+          <Text style={s.appName}>Xenom Manager</Text>
+          <Text style={s.headerTitle}>Настройки</Text>
         </View>
       </View>
 
@@ -193,7 +195,13 @@ export default function SettingsScreen() {
 const s = StyleSheet.create({
   container: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 52, paddingBottom: 20 },
-  headerX: { width: 44, height: 44, lineHeight: 44, textAlign: 'center', fontSize: 26, fontWeight: '900', color: '#fff', backgroundColor: '#7C3AED', borderRadius: 12, overflow: 'hidden' },
+  headerLogoWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+    elevation: 6,
+  },
+  headerX: { fontSize: 26, fontWeight: '900', color: '#fff' },
+  appName: { fontSize: 11, fontWeight: '700', color: '#7C3AED', letterSpacing: 1, textTransform: 'uppercase' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   headerSub: { fontSize: 13, color: C.textMuted },
   card: {

@@ -16,6 +16,7 @@ export default function ChatScreen() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [lastId, setLastId] = useState<string | null>(null)
+  const joinSent = useRef(false)
   const listRef = useRef<FlatList>(null)
   const typingTimer = useRef<ReturnType<typeof setTimeout>>()
 
@@ -26,6 +27,15 @@ export default function ChatScreen() {
     const local = await getMessages(sessionId)
     setMessages(sessionId, local)
     if (local.length > 0) setLastId(local[local.length - 1].id)
+  }
+
+  const sendJoinNotice = async () => {
+    if (joinSent.current || session?.status === 'closed') return
+    joinSent.current = true
+    try {
+      const name = settings.adminName || 'Оператор'
+      await sendMessage(sessionId, `⚡ Оператор ${name} подключился к чату`, name)
+    } catch {}
   }
 
   const pollMessages = async () => {
@@ -43,7 +53,7 @@ export default function ChatScreen() {
   }
 
   useEffect(() => {
-    loadMessages()
+    loadMessages().then(() => sendJoinNotice())
   }, [sessionId])
 
   useEffect(() => {
@@ -111,6 +121,13 @@ export default function ChatScreen() {
     catch { return '' }
   }
 
+  const adminInitials = (settings.adminName || 'ОП')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
   const isClosed = session?.status === 'closed'
   const shortId = sessionId.slice(-6).toUpperCase()
 
@@ -126,6 +143,7 @@ export default function ChatScreen() {
           <Text style={s.backArrow}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
+          <Text style={s.appLabel}>Xenom Manager</Text>
           <Text style={s.headerTitle}>Клиент #{shortId}</Text>
           <Text style={[s.headerSub, isClosed && { color: C.error }]}>
             {isClosed ? '🔴 Закрыт' : '🟢 Активен'}
@@ -144,17 +162,37 @@ export default function ChatScreen() {
         data={msgs}
         keyExtractor={(m) => m.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
-        renderItem={({ item }) => (
-          <View style={[s.msgRow, item.sender === 'admin' ? s.msgRowAdmin : s.msgRowUser]}>
-            <View style={[s.bubble, item.sender === 'admin' ? s.bubbleAdmin : s.bubbleUser]}>
-              {item.sender === 'admin' && (
-                <Text style={s.adminLabel}>{settings.adminName || 'Вы'}</Text>
+        renderItem={({ item }) => {
+          const isAdmin = item.sender === 'admin'
+          const isSystem = isAdmin && item.text.startsWith('⚡ Оператор') && item.text.includes('подключился')
+
+          if (isSystem) {
+            return (
+              <View style={s.systemRow}>
+                <Text style={s.systemText}>{item.text}</Text>
+              </View>
+            )
+          }
+
+          return (
+            <View style={[s.msgRow, isAdmin ? s.msgRowAdmin : s.msgRowUser]}>
+              {isAdmin && (
+                <View style={s.adminAvatar}>
+                  <Text style={s.adminAvatarText}>{adminInitials}</Text>
+                </View>
               )}
-              <Text style={s.msgText}>{item.text}</Text>
-              <Text style={s.msgTime}>{formatTime(item.createdAt)}</Text>
+              <View style={{ maxWidth: '72%' }}>
+                {isAdmin && (
+                  <Text style={s.adminName}>{settings.adminName || 'Оператор'}</Text>
+                )}
+                <View style={[s.bubble, isAdmin ? s.bubbleAdmin : s.bubbleUser]}>
+                  <Text style={[s.msgText, isAdmin && s.msgTextAdmin]}>{item.text}</Text>
+                  <Text style={[s.msgTime, isAdmin && s.msgTimeAdmin]}>{formatTime(item.createdAt)}</Text>
+                </View>
+              </View>
             </View>
-          </View>
-        )}
+          )
+        }}
         ListEmptyComponent={
           <View style={s.emptyChat}>
             <Text style={s.emptyChatText}>Сообщений пока нет</Text>
@@ -199,6 +237,7 @@ const s = StyleSheet.create({
   },
   backBtn: { padding: 8, marginRight: 8 },
   backArrow: { fontSize: 22, color: C.primary, fontWeight: '600' },
+  appLabel: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1, textTransform: 'uppercase' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: C.text },
   headerSub: { fontSize: 12, color: C.success, marginTop: 1 },
   closeBtn: {
@@ -206,15 +245,37 @@ const s = StyleSheet.create({
     backgroundColor: C.errorDim, borderRadius: 10, borderWidth: 1, borderColor: C.error,
   },
   closeBtnText: { color: C.error, fontSize: 13, fontWeight: '600' },
-  msgRow: { marginBottom: 10, flexDirection: 'row' },
+
+  msgRow: { marginBottom: 12, flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   msgRowUser: { justifyContent: 'flex-start' },
-  msgRowAdmin: { justifyContent: 'flex-end' },
-  bubble: { maxWidth: '78%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleUser: { backgroundColor: C.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: C.border },
-  bubbleAdmin: { backgroundColor: C.primary, borderBottomRightRadius: 4 },
-  adminLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
+  msgRowAdmin: { justifyContent: 'flex-end', flexDirection: 'row-reverse' },
+
+  adminAvatar: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 18,
+  },
+  adminAvatarText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  adminName: { fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 3, textAlign: 'right' },
+
+  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleUser: {
+    backgroundColor: C.card, borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: C.border,
+  },
+  bubbleAdmin: { backgroundColor: '#7C3AED', borderBottomRightRadius: 4 },
   msgText: { color: C.text, fontSize: 15, lineHeight: 20 },
-  msgTime: { fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 4, alignSelf: 'flex-end' },
+  msgTextAdmin: { color: '#fff' },
+  msgTime: { fontSize: 10, color: C.textMuted, marginTop: 4, alignSelf: 'flex-end' },
+  msgTimeAdmin: { color: 'rgba(255,255,255,0.6)' },
+
+  systemRow: { alignItems: 'center', marginVertical: 8 },
+  systemText: {
+    fontSize: 12, color: C.textMuted, backgroundColor: C.card,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5,
+    borderWidth: 1, borderColor: C.border,
+  },
+
   emptyChat: { alignItems: 'center', paddingTop: 40 },
   emptyChatText: { color: C.textMuted, fontSize: 14 },
   inputRow: {
