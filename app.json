@@ -17,7 +17,8 @@
         "backgroundColor": "#0B0F1A"
       },
       "package": "ru.sesdnr.admin",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-router",

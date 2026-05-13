@@ -56,3 +56,9 @@ export const closeChat = (sessionId: string) =>
     method: 'POST',
     body: JSON.stringify({ sessionId }),
   })
+
+export const registerPushToken = (token: string) =>
+  request('/api/app/push-token', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  })

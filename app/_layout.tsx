@@ -5,6 +5,18 @@ import * as Notifications from 'expo-notifications'
 import { useStore } from '@/lib/store'
 import { setupNotifications } from '@/lib/notifications'
 import { registerBackgroundSync } from '@/lib/backgroundTask'
+import { registerPushToken } from '@/lib/api'
+
+async function registerFcmToken() {
+  try {
+    const token = await Notifications.getDevicePushTokenAsync()
+    if (token?.data) {
+      await registerPushToken(token.data)
+    }
+  } catch {
+    // Firebase not configured yet — silent fail
+  }
+}
 
 export default function RootLayout() {
   const { initSettings, initialized, settings } = useStore()
@@ -12,7 +24,9 @@ export default function RootLayout() {
   const responseListener = useRef<Notifications.EventSubscription>()
 
   useEffect(() => {
-    initSettings()
+    initSettings().then(() => {
+      registerFcmToken()
+    })
     setupNotifications()
     registerBackgroundSync()
 
