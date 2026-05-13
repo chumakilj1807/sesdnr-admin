@@ -62,3 +62,9 @@ export const registerPushToken = (token: string) =>
     method: 'POST',
     body: JSON.stringify({ token }),
   })
+
+export const debugPing = (step: string, extra?: string) =>
+  request('/api/app/ping', {
+    method: 'POST',
+    body: JSON.stringify({ step, extra }),
+  }).catch(() => {})
