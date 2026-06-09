@@ -9,7 +9,7 @@ export interface AppSettings {
   adminName: string
   setupDone: boolean
   sites: Site[]
-  currentSiteId: string
+  currentSiteId: string // deprecated — оставлено для совместимости со старой версией
 }
 
 export interface Booking {
@@ -25,6 +25,9 @@ export interface Booking {
   status: 'new' | 'processing' | 'done' | 'cancelled'
   notes: string | null
   createdAt: string
+  // С какого сайта пришла заявка — заполняется при агрегации feed
+  siteId: string
+  siteName: string
 }
 
 export interface ChatSession {
@@ -34,6 +37,9 @@ export interface ChatSession {
   lastMessage: string | null
   lastMessageAt: string | null
   lastSender: 'user' | 'admin' | null
+  // С какого сайта чат
+  siteId: string
+  siteName: string
 }
 
 export interface Message {

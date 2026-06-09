@@ -21,7 +21,9 @@ export async function getDb() {
       timeSlot TEXT,
       status TEXT NOT NULL DEFAULT 'new',
       notes TEXT,
-      createdAt TEXT NOT NULL
+      createdAt TEXT NOT NULL,
+      siteId TEXT NOT NULL DEFAULT '',
+      siteName TEXT NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -30,7 +32,9 @@ export async function getDb() {
       createdAt TEXT NOT NULL,
       lastMessage TEXT,
       lastMessageAt TEXT,
-      lastSender TEXT
+      lastSender TEXT,
+      siteId TEXT NOT NULL DEFAULT '',
+      siteName TEXT NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS messages (
@@ -46,7 +50,21 @@ export async function getDb() {
       value TEXT
     );
   `)
+
+  // Миграция: добавляем siteId/siteName, если БД создана старой версией
+  await ensureColumn('bookings', 'siteId', "TEXT NOT NULL DEFAULT ''")
+  await ensureColumn('bookings', 'siteName', "TEXT NOT NULL DEFAULT ''")
+  await ensureColumn('chat_sessions', 'siteId', "TEXT NOT NULL DEFAULT ''")
+  await ensureColumn('chat_sessions', 'siteName', "TEXT NOT NULL DEFAULT ''")
   return _db
+}
+
+async function ensureColumn(table: string, col: string, decl: string) {
+  if (!_db) return
+  const cols = await _db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`)
+  if (!cols.some((c) => c.name === col)) {
+    try { await _db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${col} ${decl}`) } catch {}
+  }
 }
 
 // ── Settings ─────────────────────────────────────────────────────────────────
@@ -66,16 +84,27 @@ export async function upsertBooking(b: Booking) {
   const db = await getDb()
   await db.runAsync(
     `INSERT OR REPLACE INTO bookings
-     (id, type, name, phone, objectType, area, address, date, timeSlot, status, notes, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, type, name, phone, objectType, area, address, date, timeSlot, status, notes, createdAt, siteId, siteName)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [b.id, b.type, b.name ?? null, b.phone, b.objectType ?? null, b.area ?? null,
-     b.address ?? null, b.date ?? null, b.timeSlot ?? null, b.status, b.notes ?? null, b.createdAt]
+     b.address ?? null, b.date ?? null, b.timeSlot ?? null, b.status, b.notes ?? null, b.createdAt,
+     b.siteId ?? '', b.siteName ?? '']
   )
 }
 
 export async function getBookings(): Promise<Booking[]> {
   const db = await getDb()
   return db.getAllAsync<Booking>('SELECT * FROM bookings ORDER BY createdAt DESC')
+}
+
+export async function getBookingsForSites(siteIds: string[]): Promise<Booking[]> {
+  if (siteIds.length === 0) return []
+  const db = await getDb()
+  const placeholders = siteIds.map(() => '?').join(',')
+  return db.getAllAsync<Booking>(
+    `SELECT * FROM bookings WHERE siteId IN (${placeholders}) ORDER BY createdAt DESC`,
+    siteIds
+  )
 }
 
 export async function updateBookingLocal(id: string, status: string, notes?: string) {
@@ -91,9 +120,10 @@ export async function upsertSession(s: ChatSession) {
   const db = await getDb()
   await db.runAsync(
     `INSERT OR REPLACE INTO chat_sessions
-     (id, status, createdAt, lastMessage, lastMessageAt, lastSender)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [s.id, s.status, s.createdAt, s.lastMessage ?? null, s.lastMessageAt ?? null, s.lastSender ?? null]
+     (id, status, createdAt, lastMessage, lastMessageAt, lastSender, siteId, siteName)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [s.id, s.status, s.createdAt, s.lastMessage ?? null, s.lastMessageAt ?? null,
+     s.lastSender ?? null, s.siteId ?? '', s.siteName ?? '']
   )
 }
 

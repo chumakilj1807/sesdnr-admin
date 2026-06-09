@@ -7,7 +7,7 @@ import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
-import { fetchBookings, patchBooking } from '@/lib/api'
+import { fetchAllBookings, patchBookingFor } from '@/lib/api'
 import { getBookings, upsertBooking, updateBookingLocal } from '@/lib/db'
 import BookingCard from '@/components/BookingCard'
 import { notifyNewBooking } from '@/lib/notifications'
@@ -21,8 +21,10 @@ const FILTERS = [
 
 export default function BookingsScreen() {
   const { bookings, setBookings, updateBooking, clearNewBookings, incrementNewBookings } = useStore()
-  const currentSite = useStore(s => s.currentSite())
+  const sites = useStore(s => s.settings.sites)
+  const siteById = useStore(s => s.siteById)
   const [filter, setFilter] = useState('all')
+  const [siteFilter, setSiteFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
@@ -36,11 +38,19 @@ export default function BookingsScreen() {
   }
 
   const syncFromServer = async () => {
+    if (sites.length === 0) return
     try {
-      const remote = await fetchBookings()
+      const { bookings: remote, errors } = await fetchAllBookings(sites)
       for (const b of remote) await upsertBooking(b)
       setBookings(await getBookings())
-      setError('')
+
+      if (errors.length > 0 && errors.length === sites.length) {
+        setError('Нет связи ни с одним сервером · показан кэш')
+      } else if (errors.length > 0) {
+        setError(`Ошибка с ${errors.length} из ${sites.length} сайтов`)
+      } else {
+        setError('')
+      }
 
       if (initialized.current) {
         const newOnes = remote.filter((b) => !knownIds.current.has(b.id) && b.status === 'new')
@@ -53,7 +63,7 @@ export default function BookingsScreen() {
       for (const b of remote) knownIds.current.add(b.id)
       initialized.current = true
     } catch {
-      setError('Нет связи с сервером. Данные из кэша.')
+      setError('Нет связи · показан кэш')
     }
   }
 
@@ -66,7 +76,7 @@ export default function BookingsScreen() {
       })
       const interval = setInterval(syncFromServer, 8000)
       return () => clearInterval(interval)
-    }, [])
+    }, [sites.length])
   )
 
   const onRefresh = async () => {
@@ -76,20 +86,26 @@ export default function BookingsScreen() {
   }
 
   const handleStatusChange = async (id: string, status: string) => {
+    const b = bookings.find(x => x.id === id)
+    if (!b) return
+    const site = siteById(b.siteId)
+    if (!site) return
     updateBooking(id, status)
     await updateBookingLocal(id, status)
-    try { await patchBooking(id, status) } catch {}
+    try { await patchBookingFor(site, id, status) } catch {}
   }
 
   const filtered = bookings
     .filter((b) => filter === 'all' || b.status === filter)
+    .filter((b) => siteFilter === 'all' || b.siteId === siteFilter)
     .filter((b) => {
       if (!search) return true
       const q = search.toLowerCase()
       return (
         b.phone.includes(q) ||
         (b.name ?? '').toLowerCase().includes(q) ||
-        (b.address ?? '').toLowerCase().includes(q)
+        (b.address ?? '').toLowerCase().includes(q) ||
+        (b.siteName ?? '').toLowerCase().includes(q)
       )
     })
 
@@ -109,14 +125,10 @@ export default function BookingsScreen() {
             <Text style={s.sub}>{bookings.length} всего</Text>
             <View style={s.dot} />
             <Text style={s.sub}>{newCount} новых</Text>
+            <View style={s.dot} />
+            <Text style={s.sub}>{sites.length} сайт{sites.length === 1 ? '' : sites.length < 5 ? 'а' : 'ов'}</Text>
           </View>
         </View>
-        {currentSite && (
-          <View style={s.siteBadge}>
-            <Feather name="globe" size={11} color={C.textSecondary} />
-            <Text style={s.siteBadgeText} numberOfLines={1}>{currentSite.name}</Text>
-          </View>
-        )}
       </View>
 
       {error ? (
@@ -133,7 +145,7 @@ export default function BookingsScreen() {
           style={s.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Телефон, имя, адрес…"
+          placeholder="Телефон, имя, адрес, сайт…"
           placeholderTextColor={C.textMuted}
         />
         {search.length > 0 && (
@@ -143,10 +155,43 @@ export default function BookingsScreen() {
         )}
       </View>
 
-      {/* Фильтры */}
+      {/* Фильтр по сайтам — только если их больше одного */}
+      {sites.length > 1 && (
+        <View style={s.siteFilters}>
+          <TouchableOpacity
+            style={[s.siteChip, siteFilter === 'all' && s.siteChipActive]}
+            onPress={() => setSiteFilter('all')}
+            activeOpacity={0.7}
+          >
+            <Feather name="layers" size={11} color={siteFilter === 'all' ? '#7C3AED' : C.textSecondary} />
+            <Text style={[s.siteChipText, siteFilter === 'all' && s.siteChipTextActive]}>Все сайты</Text>
+          </TouchableOpacity>
+          {sites.map(site => {
+            const count = bookings.filter(b => b.siteId === site.id).length
+            const active = siteFilter === site.id
+            return (
+              <TouchableOpacity
+                key={site.id}
+                style={[s.siteChip, active && s.siteChipActive]}
+                onPress={() => setSiteFilter(site.id)}
+                activeOpacity={0.7}
+              >
+                <Feather name="globe" size={11} color={active ? '#7C3AED' : C.textSecondary} />
+                <Text style={[s.siteChipText, active && s.siteChipTextActive]} numberOfLines={1}>
+                  {site.name}
+                </Text>
+                {count > 0 && <Text style={[s.siteChipCount, active && s.siteChipCountActive]}>{count}</Text>}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      )}
+
+      {/* Фильтры по статусу */}
       <View style={s.filters}>
         {FILTERS.map((f) => {
-          const count = f.key === 'all' ? bookings.length : bookings.filter((b) => b.status === f.key).length
+          const base = bookings.filter(b => siteFilter === 'all' || b.siteId === siteFilter)
+          const count = f.key === 'all' ? base.length : base.filter((b) => b.status === f.key).length
           const active = filter === f.key
           return (
             <TouchableOpacity
@@ -168,7 +213,7 @@ export default function BookingsScreen() {
 
       <FlatList
         data={filtered}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => `${item.siteId}:${item.id}`}
         renderItem={({ item }) => (
           <BookingCard booking={item} onStatusChange={handleStatusChange} />
         )}
@@ -179,8 +224,14 @@ export default function BookingsScreen() {
             <View style={s.emptyIconWrap}>
               <Feather name="inbox" size={28} color={C.textMuted} />
             </View>
-            <Text style={s.emptyText}>Заявок нет</Text>
-            <Text style={s.emptySub}>Новые заявки появятся здесь автоматически</Text>
+            <Text style={s.emptyText}>
+              {sites.length === 0 ? 'Не добавлен ни один сайт' : 'Заявок нет'}
+            </Text>
+            <Text style={s.emptySub}>
+              {sites.length === 0
+                ? 'Откройте «Настройки» и добавьте сайт'
+                : 'Новые заявки появятся здесь автоматически'}
+            </Text>
           </View>
         }
       />
@@ -203,17 +254,9 @@ const s = StyleSheet.create({
   logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
   appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
-  subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },
   sub: { fontSize: 12, color: C.textMuted },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.textMuted },
-  siteBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: C.card, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 6,
-    borderWidth: 1, borderColor: C.border,
-    maxWidth: 140,
-  },
-  siteBadgeText: { color: C.textSecondary, fontSize: 11, fontWeight: '600' },
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -229,6 +272,23 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, marginBottom: 12,
   },
   searchInput: { flex: 1, height: 44, color: C.text, fontSize: 14 },
+
+  siteFilters: {
+    flexDirection: 'row', paddingHorizontal: 16, gap: 6, marginBottom: 8, flexWrap: 'wrap',
+  },
+  siteChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, maxWidth: 200,
+  },
+  siteChipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  siteChipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
+  siteChipTextActive: { color: '#7C3AED' },
+  siteChipCount: {
+    backgroundColor: C.border, borderRadius: 8, paddingHorizontal: 5,
+    fontSize: 10, fontWeight: '700', color: C.textSecondary, marginLeft: 2,
+  },
+  siteChipCountActive: { backgroundColor: '#7C3AED', color: '#fff' },
 
   filters: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 4, flexWrap: 'wrap' },
   filterBtn: {

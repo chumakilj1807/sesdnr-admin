@@ -13,6 +13,7 @@ interface AppState {
   initialized: boolean
 
   currentSite: () => Site | null
+  siteById: (id: string) => Site | null
 
   initSettings: () => Promise<void>
   saveSettings: (s: Partial<AppSettings>) => Promise<void>
@@ -40,8 +41,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   currentSiteId: '',
 }
 
+// Singleton API оставлен для chat detail screen, чтобы старая страница тоже работала.
+// Новый код использует per-call site из api.ts
 function applyCurrentSite(settings: AppSettings) {
-  const site = settings.sites.find(s => s.id === settings.currentSiteId)
+  const site = settings.sites.find(s => s.id === settings.currentSiteId) ?? settings.sites[0]
   if (site) configureApi(site.serverUrl, site.token)
 }
 
@@ -60,15 +63,19 @@ export const useStore = create<AppState>((set, get) => ({
 
   currentSite: () => {
     const { settings } = get()
-    return settings.sites.find(s => s.id === settings.currentSiteId) ?? null
+    return settings.sites.find(s => s.id === settings.currentSiteId) ?? settings.sites[0] ?? null
+  },
+
+  siteById: (id) => {
+    const { settings } = get()
+    return settings.sites.find(s => s.id === id) ?? null
   },
 
   initSettings: async () => {
     try {
-      // Try new format first
       let raw = await SecureStore.getItemAsync('app_settings_v2')
       if (!raw) {
-        // Migrate old format
+        // Миграция из старого формата
         const oldRaw = await SecureStore.getItemAsync('app_settings')
         if (oldRaw) {
           const old = JSON.parse(oldRaw)
@@ -113,6 +120,7 @@ export const useStore = create<AppState>((set, get) => ({
   addSite: async (site) => {
     const settings = get().settings
     const sites = [...settings.sites, site]
+    // первый сайт автоматически становится «текущим» для legacy single-site логики
     const currentSiteId = settings.sites.length === 0 ? site.id : settings.currentSiteId
     const next = { ...settings, sites, currentSiteId }
     set({ settings: next })
@@ -136,7 +144,12 @@ export const useStore = create<AppState>((set, get) => ({
       ? (sites[0]?.id ?? '')
       : settings.currentSiteId
     const next = { ...settings, sites, currentSiteId }
-    set({ settings: next, bookings: [], sessions: [], messages: {} })
+    // удаляем заявки/сессии этого сайта из in-memory feed
+    set({
+      settings: next,
+      bookings: get().bookings.filter(b => b.siteId !== id),
+      sessions: get().sessions.filter(s => s.siteId !== id),
+    })
     await persist(next)
     applyCurrentSite(next)
   },
@@ -144,7 +157,7 @@ export const useStore = create<AppState>((set, get) => ({
   switchSite: async (id) => {
     const settings = get().settings
     const next = { ...settings, currentSiteId: id }
-    set({ settings: next, bookings: [], sessions: [], messages: {} })
+    set({ settings: next })
     await persist(next)
     applyCurrentSite(next)
   },

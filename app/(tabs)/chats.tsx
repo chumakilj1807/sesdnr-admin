@@ -4,35 +4,43 @@ import { Feather } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
-import { fetchChats } from '@/lib/api'
+import { fetchAllChats } from '@/lib/api'
 import { getSessions, upsertSession } from '@/lib/db'
 import ChatItem from '@/components/ChatItem'
 import { notifyNewMessage } from '@/lib/notifications'
 
 export default function ChatsScreen() {
   const { sessions, setSessions, clearNewMessages, incrementNewMessages } = useStore()
-  const currentSite = useStore(s => s.currentSite())
+  const sites = useStore(s => s.settings.sites)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const lastSeenAt = useRef<Map<string, string | null>>(new Map())
   const initialized = useRef(false)
 
   const sync = async () => {
+    if (sites.length === 0) return
     try {
-      const remote = await fetchChats()
+      const { sessions: remote, errors } = await fetchAllChats(sites)
       for (const s of remote) await upsertSession(s)
       const local = await getSessions()
       setSessions(local)
-      setError('')
+
+      if (errors.length > 0 && errors.length === sites.length) {
+        setError('Нет связи ни с одним сервером · кэш')
+      } else if (errors.length > 0) {
+        setError(`Ошибка с ${errors.length} из ${sites.length} сайтов`)
+      } else {
+        setError('')
+      }
 
       for (const s of remote) {
         const prev = lastSeenAt.current.get(s.id)
-        const isNew = !lastSeenAt.current.has(s.id)
+        const isFirstSeen = !lastSeenAt.current.has(s.id)
 
         if (initialized.current) {
           const hasNewMsg =
-            (isNew && s.lastSender === 'user') ||
-            (!isNew && s.lastSender === 'user' && s.lastMessageAt !== prev)
+            (isFirstSeen && s.lastSender === 'user') ||
+            (!isFirstSeen && s.lastSender === 'user' && s.lastMessageAt !== prev)
 
           if (hasNewMsg) {
             incrementNewMessages()
@@ -45,7 +53,7 @@ export default function ChatsScreen() {
 
       initialized.current = true
     } catch {
-      setError('Нет связи · данные из кэша')
+      setError('Нет связи · кэш')
       setSessions(await getSessions())
     }
   }
@@ -56,7 +64,7 @@ export default function ChatsScreen() {
       sync()
       const t = setInterval(sync, 6000)
       return () => clearInterval(t)
-    }, [])
+    }, [sites.length])
   )
 
   const onRefresh = async () => {
@@ -81,14 +89,10 @@ export default function ChatsScreen() {
             <Text style={s.sub}>{active.length} активных</Text>
             <View style={s.dot} />
             <Text style={s.sub}>{closed.length} закрытых</Text>
+            <View style={s.dot} />
+            <Text style={s.sub}>{sites.length} сайт{sites.length === 1 ? '' : sites.length < 5 ? 'а' : 'ов'}</Text>
           </View>
         </View>
-        {currentSite && (
-          <View style={s.siteBadge}>
-            <Feather name="globe" size={11} color={C.textSecondary} />
-            <Text style={s.siteBadgeText} numberOfLines={1}>{currentSite.name}</Text>
-          </View>
-        )}
       </View>
 
       {error ? (
@@ -100,7 +104,7 @@ export default function ChatsScreen() {
 
       <FlatList
         data={sessions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => `${item.siteId}:${item.id}`}
         renderItem={({ item }) => (
           <ChatItem
             session={item}
@@ -114,8 +118,14 @@ export default function ChatsScreen() {
             <View style={s.emptyIconWrap}>
               <Feather name="message-circle" size={28} color={C.textMuted} />
             </View>
-            <Text style={s.emptyText}>Чатов пока нет</Text>
-            <Text style={s.emptySub}>Когда клиент откроет чат на сайте, он появится здесь</Text>
+            <Text style={s.emptyText}>
+              {sites.length === 0 ? 'Не добавлен ни один сайт' : 'Чатов пока нет'}
+            </Text>
+            <Text style={s.emptySub}>
+              {sites.length === 0
+                ? 'Откройте «Настройки» и добавьте сайт'
+                : 'Когда клиент откроет чат на сайте, он появится здесь'}
+            </Text>
           </View>
         }
       />
@@ -138,18 +148,9 @@ const s = StyleSheet.create({
   logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
   appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
-  subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },
   sub: { fontSize: 12, color: C.textMuted },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.textMuted },
-
-  siteBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: C.card, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 6,
-    borderWidth: 1, borderColor: C.border,
-    maxWidth: 140,
-  },
-  siteBadgeText: { color: C.textSecondary, fontSize: 11, fontWeight: '600' },
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

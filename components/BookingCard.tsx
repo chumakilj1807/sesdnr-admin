@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking, Pressable } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { C, STATUS_COLOR, STATUS_LABEL } from '@/constants/Colors'
-import { useStore } from '@/lib/store'
 import type { Booking } from '@/lib/types'
 
 const OBJ_LABEL: Record<string, string> = {
@@ -26,7 +25,6 @@ function telHref(raw: string) {
 
 export default function BookingCard({ booking: b, onStatusChange }: Props) {
   const [expanded, setExpanded] = useState(false)
-  const currentSite = useStore(s => s.currentSite())
 
   const statusColor = STATUS_COLOR[b.status] ?? C.textMuted
   const isNew = b.status === 'new'
@@ -77,12 +75,12 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
               </Text>
             </View>
 
-            {currentSite && (
+            {b.siteName ? (
               <View style={s.siteTag}>
                 <Feather name="globe" size={11} color={C.textSecondary} />
-                <Text style={s.siteText} numberOfLines={1}>{currentSite.name}</Text>
+                <Text style={s.siteText} numberOfLines={1}>{b.siteName}</Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           <View style={[s.statusTag, { borderColor: `${statusColor}66`, backgroundColor: `${statusColor}1f` }]}>

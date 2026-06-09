@@ -100,7 +100,7 @@ function SiteForm({
 }
 
 export default function SettingsScreen() {
-  const { settings, saveSettings, addSite, updateSite, removeSite, switchSite } = useStore()
+  const { settings, saveSettings, addSite, updateSite, removeSite } = useStore()
   const [adminName, setAdminName] = useState(settings.adminName)
   const [nameSaved, setNameSaved] = useState(false)
   const [addingNew, setAddingNew] = useState(false)
@@ -180,23 +180,13 @@ export default function SettingsScreen() {
                 onCancel={() => setEditingId(null)}
               />
             ) : (
-              <TouchableOpacity
-                style={[s.siteRow, site.id === settings.currentSiteId && s.siteRowActive]}
-                onPress={() => switchSite(site.id)}
-                activeOpacity={0.7}
-              >
-                <View style={[s.siteIndicator, { backgroundColor: site.id === settings.currentSiteId ? '#7C3AED' : C.border }]} />
+              <View style={s.siteRow}>
+                <View style={[s.siteIndicator, { backgroundColor: '#7C3AED' }]} />
                 <View style={{ flex: 1 }}>
                   <View style={s.siteNameRow}>
-                    <Text style={[s.siteName, site.id === settings.currentSiteId && s.siteNameActive]} numberOfLines={1}>
+                    <Text style={[s.siteName, s.siteNameActive]} numberOfLines={1}>
                       {site.name}
                     </Text>
-                    {site.id === settings.currentSiteId && (
-                      <View style={s.activeChip}>
-                        <View style={s.activeDot} />
-                        <Text style={s.activeChipText}>активен</Text>
-                      </View>
-                    )}
                   </View>
                   <Text style={s.siteUrl} numberOfLines={1}>{site.serverUrl}</Text>
                 </View>
@@ -206,7 +196,7 @@ export default function SettingsScreen() {
                 <TouchableOpacity onPress={() => handleDeleteSite(site)} style={s.siteBtn} hitSlop={8}>
                   <Feather name="trash-2" size={14} color={C.error} />
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             )}
           </View>
         ))}
@@ -225,7 +215,7 @@ export default function SettingsScreen() {
         )}
 
         <Text style={s.helpHint}>
-          Поддерживаются домены .рф — приложение переводит их в punycode автоматически
+          Заявки и чаты приходят со ВСЕХ добавленных сайтов в общий список. В шапке каждой заявки видно, с какого сайта она пришла. Домены .рф конвертируются в punycode автоматически.
         </Text>
       </View>
 
@@ -254,8 +244,8 @@ export default function SettingsScreen() {
           <Text style={s.infoVal}>{settings.adminName || '—'}</Text>
         </View>
         <View style={s.infoRow}>
-          <Text style={s.infoLbl}>Активный сайт</Text>
-          <Text style={s.infoVal}>{settings.sites.find(x => x.id === settings.currentSiteId)?.name ?? '—'}</Text>
+          <Text style={s.infoLbl}>Подключено сайтов</Text>
+          <Text style={s.infoVal}>{settings.sites.length}</Text>
         </View>
         <View style={s.infoRow}>
           <Text style={s.infoLbl}>Версия</Text>

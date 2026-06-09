@@ -57,6 +57,13 @@ export default function ChatItem({ session: s, onPress }: Props) {
           <Text style={[st.statusText, { color: isClosed ? '#EF4444' : '#22C55E' }]}>
             {isClosed ? 'Закрыт' : 'Активен'}
           </Text>
+          {s.siteName ? (
+            <>
+              <View style={st.sep} />
+              <Feather name="globe" size={10} color={C.textMuted} />
+              <Text style={st.siteText} numberOfLines={1}>{s.siteName}</Text>
+            </>
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>
@@ -86,7 +93,9 @@ const st = StyleSheet.create({
   preview: { fontSize: 13, color: C.textSecondary, flex: 1 },
   previewUnread: { color: C.text, fontWeight: '500' },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4, flexWrap: 'wrap' },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11 },
+  sep: { width: 2, height: 2, borderRadius: 1, backgroundColor: C.textMuted, marginHorizontal: 3 },
+  siteText: { fontSize: 11, color: C.textMuted, fontWeight: '500', maxWidth: 140 },
 })
