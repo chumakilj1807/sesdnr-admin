@@ -1,7 +1,7 @@
 import * as BackgroundFetch from 'expo-background-fetch'
 import * as TaskManager from 'expo-task-manager'
 import * as SecureStore from 'expo-secure-store'
-import { configureApi, fetchBookings, fetchChats } from './api'
+import { fetchAllBookings, fetchAllChats } from './api'
 import { getBookings, upsertBooking, getSessions, upsertSession } from './db'
 import { notifyNewBooking, notifyNewMessage } from './notifications'
 import type { AppSettings } from './types'
@@ -15,23 +15,23 @@ TaskManager.defineTask(BG_TASK, async () => {
     if (!raw) return BackgroundFetch.BackgroundFetchResult.NoData
 
     const settings = JSON.parse(raw) as AppSettings
-    const site = settings.sites?.find((s) => s.id === settings.currentSiteId)
-    if (!site) return BackgroundFetch.BackgroundFetchResult.NoData
+    const sites = settings.sites ?? []
+    if (sites.length === 0) return BackgroundFetch.BackgroundFetchResult.NoData
 
-    configureApi(site.serverUrl, site.token)
-
-    // Check for new bookings
+    // Bookings — параллельно со всех сайтов
     const localBookings = await getBookings()
     const localBookingIds = new Set(localBookings.map((b) => b.id))
-    const remoteBookings = await fetchBookings()
-    const newBookings = remoteBookings.filter((b) => !localBookingIds.has(b.id) && b.status === 'new')
+    const { bookings: remoteBookings } = await fetchAllBookings(sites)
+    const newBookings = remoteBookings.filter(
+      (b) => !localBookingIds.has(b.id) && b.status === 'new'
+    )
     for (const b of remoteBookings) await upsertBooking(b)
     if (newBookings.length > 0) await notifyNewBooking(newBookings.length)
 
-    // Check for new chat messages
+    // Chats — параллельно со всех сайтов
     const localSessions = await getSessions()
     const lastSeenAt = new Map(localSessions.map((s) => [s.id, s.lastMessageAt]))
-    const remoteSessions = await fetchChats()
+    const { sessions: remoteSessions } = await fetchAllChats(sites)
     for (const s of remoteSessions) {
       const prev = lastSeenAt.get(s.id)
       const isNewSession = prev === undefined
