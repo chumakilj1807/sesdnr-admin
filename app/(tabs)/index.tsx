@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, RefreshControl,
   TouchableOpacity, TextInput,
 } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
@@ -10,7 +11,6 @@ import { fetchBookings, patchBooking } from '@/lib/api'
 import { getBookings, upsertBooking, updateBookingLocal } from '@/lib/db'
 import BookingCard from '@/components/BookingCard'
 import { notifyNewBooking } from '@/lib/notifications'
-import type { Booking } from '@/lib/types'
 
 const FILTERS = [
   { key: 'all', label: 'Все' },
@@ -21,6 +21,7 @@ const FILTERS = [
 
 export default function BookingsScreen() {
   const { bookings, setBookings, updateBooking, clearNewBookings, incrementNewBookings } = useStore()
+  const currentSite = useStore(s => s.currentSite())
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
@@ -96,34 +97,53 @@ export default function BookingsScreen() {
 
   return (
     <View style={s.container}>
+      {/* Header */}
       <View style={s.header}>
         <View style={s.logoWrap}>
           <Text style={s.logoX}>X</Text>
         </View>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={s.appName}>Xenom Manager</Text>
           <Text style={s.title}>Заявки</Text>
-          <Text style={s.sub}>{bookings.length} всего · {newCount} новых</Text>
+          <View style={s.subRow}>
+            <Text style={s.sub}>{bookings.length} всего</Text>
+            <View style={s.dot} />
+            <Text style={s.sub}>{newCount} новых</Text>
+          </View>
         </View>
+        {currentSite && (
+          <View style={s.siteBadge}>
+            <Feather name="globe" size={11} color={C.textSecondary} />
+            <Text style={s.siteBadgeText} numberOfLines={1}>{currentSite.name}</Text>
+          </View>
+        )}
       </View>
 
       {error ? (
         <View style={s.errorBanner}>
-          <Text style={s.errorText}>⚠️ {error}</Text>
+          <Feather name="wifi-off" size={14} color={C.error} />
+          <Text style={s.errorText}>{error}</Text>
         </View>
       ) : null}
 
+      {/* Поиск */}
       <View style={s.searchWrap}>
-        <Text style={s.searchIcon}>🔍</Text>
+        <Feather name="search" size={15} color={C.textMuted} style={{ marginRight: 8 }} />
         <TextInput
           style={s.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Телефон, имя, адрес..."
+          placeholder="Телефон, имя, адрес…"
           placeholderTextColor={C.textMuted}
         />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')} hitSlop={10}>
+            <Feather name="x" size={15} color={C.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
+      {/* Фильтры */}
       <View style={s.filters}>
         {FILTERS.map((f) => {
           const count = f.key === 'all' ? bookings.length : bookings.filter((b) => b.status === f.key).length
@@ -133,11 +153,14 @@ export default function BookingsScreen() {
               key={f.key}
               style={[s.filterBtn, active && s.filterActive]}
               onPress={() => setFilter(f.key)}
+              activeOpacity={0.7}
             >
-              <Text style={[s.filterText, active && s.filterTextActive]}>
-                {f.label}
-                {count > 0 ? ` ${count}` : ''}
-              </Text>
+              <Text style={[s.filterText, active && s.filterTextActive]}>{f.label}</Text>
+              {count > 0 && (
+                <View style={[s.filterCount, active && s.filterCountActive]}>
+                  <Text style={[s.filterCountText, active && s.filterCountTextActive]}>{count}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           )
         })}
@@ -153,8 +176,11 @@ export default function BookingsScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         ListEmptyComponent={
           <View style={s.empty}>
-            <Text style={s.emptyIcon}>📋</Text>
+            <View style={s.emptyIconWrap}>
+              <Feather name="inbox" size={28} color={C.textMuted} />
+            </View>
             <Text style={s.emptyText}>Заявок нет</Text>
+            <Text style={s.emptySub}>Новые заявки появятся здесь автоматически</Text>
           </View>
         }
       />
@@ -172,29 +198,61 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
     elevation: 6,
+    shadowColor: '#7C3AED', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
-  appName: { fontSize: 11, fontWeight: '700', color: '#7C3AED', letterSpacing: 1, textTransform: 'uppercase' },
-  title: { fontSize: 22, fontWeight: '800', color: C.text },
-  sub: { fontSize: 13, color: C.textMuted, marginTop: 1 },
-  errorBanner: { backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10, padding: 10, marginBottom: 4 },
-  errorText: { color: C.error, fontSize: 13 },
+  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  sub: { fontSize: 12, color: C.textMuted },
+  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.textMuted },
+  siteBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.card, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 1, borderColor: C.border,
+    maxWidth: 140,
+  },
+  siteBadgeText: { color: C.textSecondary, fontSize: 11, fontWeight: '600' },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
+    borderWidth: 1, borderColor: `${C.error}33`,
+  },
+  errorText: { color: C.error, fontSize: 13, flex: 1 },
+
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.card, marginHorizontal: 16, borderRadius: 12,
     borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, marginBottom: 12,
   },
-  searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, height: 44, color: C.text, fontSize: 14 },
-  filters: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 4 },
+
+  filters: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 4, flexWrap: 'wrap' },
   filterBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
-  filterActive: { backgroundColor: C.primaryDim, borderColor: C.primary },
+  filterActive: { backgroundColor: C.primaryDim, borderColor: `${C.primary}88` },
   filterText: { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
-  filterTextActive: { color: C.primary, fontWeight: '600' },
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: C.textMuted, fontSize: 16 },
+  filterTextActive: { color: C.primary, fontWeight: '700' },
+  filterCount: {
+    backgroundColor: C.border, borderRadius: 10,
+    paddingHorizontal: 6, minWidth: 18, alignItems: 'center',
+  },
+  filterCountActive: { backgroundColor: C.primary },
+  filterCountText: { fontSize: 10, fontWeight: '700', color: C.textSecondary },
+  filterCountTextActive: { color: '#fff' },
+
+  empty: { alignItems: 'center', paddingTop: 80 },
+  emptyIconWrap: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  emptyText: { color: C.text, fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  emptySub: { color: C.textMuted, fontSize: 13, textAlign: 'center', paddingHorizontal: 32 },
 })

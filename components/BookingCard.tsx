@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking, Pressable } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { C, STATUS_COLOR, STATUS_LABEL } from '@/constants/Colors'
+import { useStore } from '@/lib/store'
 import type { Booking } from '@/lib/types'
 
 const OBJ_LABEL: Record<string, string> = {
@@ -12,8 +14,19 @@ interface Props {
   onStatusChange: (id: string, status: string) => void
 }
 
+function formatPhone(raw: string) {
+  // оставляем как есть для отображения; для tel: чистим
+  return raw
+}
+
+function telHref(raw: string) {
+  const clean = raw.replace(/[^\d+]/g, '')
+  return `tel:${clean}`
+}
+
 export default function BookingCard({ booking: b, onStatusChange }: Props) {
   const [expanded, setExpanded] = useState(false)
+  const currentSite = useStore(s => s.currentSite())
 
   const statusColor = STATUS_COLOR[b.status] ?? C.textMuted
   const isNew = b.status === 'new'
@@ -28,132 +41,244 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
   }
 
   const changeStatus = (status: string, label: string) => {
-    Alert.alert(`Статус: ${label}`, `Установить статус "${label}" для заявки?`, [
+    Alert.alert(`Статус: ${label}`, `Установить статус «${label}» для заявки?`, [
       { text: 'Отмена', style: 'cancel' },
       { text: label, onPress: () => onStatusChange(b.id, status) },
     ])
   }
 
-  return (
-    <TouchableOpacity
-      style={[s.card, isNew && s.cardNew]}
-      onPress={() => setExpanded((v) => !v)}
-      activeOpacity={0.85}
-    >
-      {/* Status bar */}
-      <View style={[s.statusBar, { backgroundColor: statusColor }]} />
+  const callPhone = () => {
+    Linking.openURL(telHref(b.phone)).catch(() => {
+      Alert.alert('Ошибка', 'Не удалось открыть звонок')
+    })
+  }
 
-      <View style={s.body}>
-        {/* Top row */}
+  return (
+    <View style={[s.card, isNew && s.cardNew]}>
+      {/* Цветной accent слева */}
+      <View style={[s.accent, { backgroundColor: statusColor }]} />
+
+      <TouchableOpacity
+        style={s.body}
+        onPress={() => setExpanded(v => !v)}
+        activeOpacity={0.9}
+      >
+        {/* Верхняя строка: тип + сайт + статус */}
         <View style={s.topRow}>
-          <View style={s.typeTag}>
-            <Text style={s.typeText}>{b.type === 'callback' ? '📞 Звонок' : '📋 Заявка'}</Text>
+          <View style={s.topLeft}>
+            <View style={s.typeTag}>
+              <Feather
+                name={b.type === 'callback' ? 'phone-call' : 'clipboard'}
+                size={12}
+                color={C.primary}
+              />
+              <Text style={s.typeText}>
+                {b.type === 'callback' ? 'Звонок' : 'Заявка'}
+              </Text>
+            </View>
+
+            {currentSite && (
+              <View style={s.siteTag}>
+                <Feather name="globe" size={11} color={C.textSecondary} />
+                <Text style={s.siteText} numberOfLines={1}>{currentSite.name}</Text>
+              </View>
+            )}
           </View>
-          <View style={[s.statusTag, { backgroundColor: `${statusColor}22`, borderColor: `${statusColor}55` }]}>
+
+          <View style={[s.statusTag, { borderColor: `${statusColor}66`, backgroundColor: `${statusColor}1f` }]}>
+            <View style={[s.statusDot, { backgroundColor: statusColor }]} />
             <Text style={[s.statusText, { color: statusColor }]}>{STATUS_LABEL[b.status]}</Text>
           </View>
         </View>
 
-        {/* Name & phone */}
-        <Text style={s.name}>{b.name ?? '—'}</Text>
-        <Text style={s.phone}>{b.phone}</Text>
+        {/* Имя */}
+        <Text style={s.name}>{b.name ?? 'Без имени'}</Text>
 
-        {/* Date */}
-        <Text style={s.date}>{formatDate(b.createdAt)}</Text>
+        {/* Телефон — кликабельный */}
+        <Pressable
+          onPress={callPhone}
+          style={({ pressed }) => [s.phoneBtn, pressed && s.phoneBtnPressed]}
+          hitSlop={6}
+        >
+          <Feather name="phone" size={14} color={C.cyan} />
+          <Text style={s.phoneText}>{formatPhone(b.phone)}</Text>
+          <View style={s.phoneCallChip}>
+            <Feather name="phone-call" size={12} color={C.bg} />
+            <Text style={s.phoneCallChipText}>Позвонить</Text>
+          </View>
+        </Pressable>
 
-        {/* Expanded info */}
+        {/* Дата */}
+        <View style={s.dateRow}>
+          <Feather name="clock" size={11} color={C.textMuted} />
+          <Text style={s.date}>{formatDate(b.createdAt)}</Text>
+        </View>
+
+        {/* Раскрытая часть */}
         {expanded && (
           <View style={s.expanded}>
             {b.objectType && (
-              <View style={s.infoRow}>
-                <Text style={s.infoLabel}>🏠 Объект</Text>
-                <Text style={s.infoVal}>{OBJ_LABEL[b.objectType] ?? b.objectType}</Text>
-              </View>
+              <InfoRow icon="home" label="Объект" value={OBJ_LABEL[b.objectType] ?? b.objectType} />
             )}
-            {b.area && (
-              <View style={s.infoRow}>
-                <Text style={s.infoLabel}>📐 Площадь</Text>
-                <Text style={s.infoVal}>{b.area} м²</Text>
-              </View>
+            {b.area != null && (
+              <InfoRow icon="maximize-2" label="Площадь" value={`${b.area} м²`} />
             )}
             {b.address && (
-              <View style={s.infoRow}>
-                <Text style={s.infoLabel}>📍 Адрес</Text>
-                <Text style={s.infoVal}>{b.address}</Text>
-              </View>
+              <InfoRow icon="map-pin" label="Адрес" value={b.address} />
             )}
             {b.date && (
-              <View style={s.infoRow}>
-                <Text style={s.infoLabel}>📅 Дата</Text>
-                <Text style={s.infoVal}>{b.date}{b.timeSlot ? ` ${b.timeSlot}` : ''}</Text>
-              </View>
+              <InfoRow icon="calendar" label="Дата" value={`${b.date}${b.timeSlot ? ` · ${b.timeSlot}` : ''}`} />
             )}
             {b.notes && (
-              <View style={s.infoRow}>
-                <Text style={s.infoLabel}>📝 Заметки</Text>
-                <Text style={s.infoVal}>{b.notes}</Text>
-              </View>
+              <InfoRow icon="edit-3" label="Заметки" value={b.notes} />
             )}
 
-            {/* Actions */}
             {!isDone && (
               <View style={s.actions}>
                 {b.status !== 'processing' && (
                   <TouchableOpacity
-                    style={[s.actionBtn, { borderColor: C.warning }]}
+                    style={[s.actionBtn, { borderColor: `${C.warning}80`, backgroundColor: `${C.warning}10` }]}
                     onPress={() => changeStatus('processing', 'В работе')}
                   >
-                    <Text style={[s.actionText, { color: C.warning }]}>⚙️ В работе</Text>
+                    <Feather name="activity" size={13} color={C.warning} />
+                    <Text style={[s.actionText, { color: C.warning }]}>В работе</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={[s.actionBtn, { borderColor: C.success }]}
+                  style={[s.actionBtn, { borderColor: `${C.success}80`, backgroundColor: `${C.success}10` }]}
                   onPress={() => changeStatus('done', 'Готово')}
                 >
-                  <Text style={[s.actionText, { color: C.success }]}>✅ Готово</Text>
+                  <Feather name="check" size={13} color={C.success} />
+                  <Text style={[s.actionText, { color: C.success }]}>Готово</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[s.actionBtn, { borderColor: C.error }]}
+                  style={[s.actionBtn, { borderColor: `${C.error}80`, backgroundColor: `${C.error}10` }]}
                   onPress={() => changeStatus('cancelled', 'Отмена')}
                 >
-                  <Text style={[s.actionText, { color: C.error }]}>✕ Отмена</Text>
+                  <Feather name="x" size={13} color={C.error} />
+                  <Text style={[s.actionText, { color: C.error }]}>Отмена</Text>
                 </TouchableOpacity>
               </View>
             )}
           </View>
         )}
 
-        {/* Expand hint */}
-        <Text style={s.expandHint}>{expanded ? '▲ свернуть' : '▼ подробнее'}</Text>
+        {/* Hint раскрытия */}
+        <View style={s.expandRow}>
+          <Feather
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={C.textMuted}
+          />
+          <Text style={s.expandHint}>{expanded ? 'свернуть' : 'подробнее'}</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+function InfoRow({ icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <View style={s.infoRow}>
+      <View style={s.infoIconWrap}>
+        <Feather name={icon} size={13} color={C.textSecondary} />
       </View>
-    </TouchableOpacity>
+      <View style={{ flex: 1 }}>
+        <Text style={s.infoLabel}>{label}</Text>
+        <Text style={s.infoVal}>{value}</Text>
+      </View>
+    </View>
   )
 }
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: C.card, borderRadius: 14, marginBottom: 12,
-    borderWidth: 1, borderColor: C.border, flexDirection: 'row', overflow: 'hidden',
+    backgroundColor: C.card,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    flexDirection: 'row',
+    overflow: 'hidden',
   },
-  cardNew: { borderColor: `${C.primary}50` },
-  statusBar: { width: 4 },
-  body: { flex: 1, padding: 14 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  typeTag: { backgroundColor: C.primaryDim, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  typeText: { color: C.primary, fontSize: 12, fontWeight: '600' },
-  statusTag: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1 },
-  statusText: { fontSize: 12, fontWeight: '600' },
-  name: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 2 },
-  phone: { fontSize: 14, color: C.cyan, marginBottom: 4, fontWeight: '500' },
+  cardNew: {
+    borderColor: `${C.primary}55`,
+    backgroundColor: '#10182a',
+    shadowColor: C.primary,
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 3,
+  },
+  accent: { width: 3 },
+  body: { flex: 1, padding: 16 },
+
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 },
+  topLeft: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+
+  typeTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.primaryDim, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  typeText: { color: C.primary, fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+
+  siteTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#0d1420', borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: C.border,
+    maxWidth: 180,
+  },
+  siteText: { color: C.textSecondary, fontSize: 11, fontWeight: '600' },
+
+  statusTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11, fontWeight: '700' },
+
+  name: { fontSize: 17, fontWeight: '700', color: C.text, marginBottom: 8, letterSpacing: -0.2 },
+
+  phoneBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: `${C.cyan}10`,
+    borderWidth: 1, borderColor: `${C.cyan}33`,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    marginBottom: 10,
+  },
+  phoneBtnPressed: { backgroundColor: `${C.cyan}1f`, borderColor: `${C.cyan}55` },
+  phoneText: { color: C.cyan, fontSize: 15, fontWeight: '600', flex: 1 },
+  phoneCallChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: C.cyan, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  phoneCallChipText: { color: C.bg, fontSize: 11, fontWeight: '700' },
+
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   date: { fontSize: 12, color: C.textMuted },
-  expanded: { marginTop: 12, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
-  infoRow: { flexDirection: 'row', marginBottom: 8, gap: 8 },
-  infoLabel: { fontSize: 13, color: C.textMuted, width: 90 },
-  infoVal: { fontSize: 13, color: C.text, flex: 1 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
+
+  expanded: { marginTop: 14, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
+
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  infoIconWrap: {
+    width: 26, height: 26, borderRadius: 7,
+    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  infoLabel: { fontSize: 11, color: C.textMuted, marginBottom: 1, textTransform: 'uppercase', letterSpacing: 0.4 },
+  infoVal: { fontSize: 14, color: C.text, lineHeight: 18 },
+
+  actions: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
   actionBtn: {
-    borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8,
   },
   actionText: { fontSize: 13, fontWeight: '600' },
-  expandHint: { fontSize: 11, color: C.textMuted, marginTop: 8 },
+
+  expandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 10 },
+  expandHint: { fontSize: 11, color: C.textMuted, fontWeight: '500' },
 })

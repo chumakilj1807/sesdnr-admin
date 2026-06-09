@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router'
 import { Text, View } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { useStore } from '@/lib/store'
 import { C } from '@/constants/Colors'
 
@@ -7,9 +8,10 @@ function Badge({ count }: { count: number }) {
   if (count === 0) return null
   return (
     <View style={{
-      position: 'absolute', top: -4, right: -8, minWidth: 18, height: 18,
+      position: 'absolute', top: -4, right: -10, minWidth: 18, height: 18,
       backgroundColor: C.error, borderRadius: 9, paddingHorizontal: 4,
       alignItems: 'center', justifyContent: 'center',
+      borderWidth: 2, borderColor: '#0D1220',
     }}>
       <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
         {count > 99 ? '99+' : count}
@@ -31,10 +33,11 @@ export default function TabLayout() {
           borderTopWidth: 1,
           height: 64,
           paddingBottom: 8,
+          paddingTop: 6,
         },
         tabBarActiveTintColor: '#7C3AED',
         tabBarInactiveTintColor: C.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
       }}
     >
       <Tabs.Screen
@@ -43,7 +46,7 @@ export default function TabLayout() {
           title: 'Заявки',
           tabBarIcon: ({ color }) => (
             <View>
-              <Text style={{ fontSize: 22 }}>📋</Text>
+              <Feather name="inbox" size={22} color={color} />
               <Badge count={newBookingsCount} />
             </View>
           ),
@@ -55,7 +58,7 @@ export default function TabLayout() {
           title: 'Чаты',
           tabBarIcon: ({ color }) => (
             <View>
-              <Text style={{ fontSize: 22 }}>💬</Text>
+              <Feather name="message-circle" size={22} color={color} />
               <Badge count={newMessagesCount} />
             </View>
           ),
@@ -65,7 +68,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Настройки',
-          tabBarIcon: () => <Text style={{ fontSize: 22 }}>⚙️</Text>,
+          tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} />,
         }}
       />
     </Tabs>

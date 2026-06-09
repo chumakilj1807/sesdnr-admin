@@ -1,5 +1,8 @@
 node_modules/
 .expo/
+INTEGRATION_GUIDE.md
+xenom-manager-firebase-adminsdk-fbsvc-e1ade01398.json
+*.apk
 dist/
 *.jks
 *.p8

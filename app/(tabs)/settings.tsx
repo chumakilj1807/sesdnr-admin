@@ -3,12 +3,23 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, Alert,
 } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { sendTestNotification } from '@/lib/notifications'
 import type { Site } from '@/lib/types'
 
-// Row component OUTSIDE to avoid remount on every keystroke
+// Преобразуем `дезинсек.рф` → `xn--d1acahfnt6a.xn--p1ai` (нужно для fetch)
+function toAscii(host: string): string {
+  try {
+    // встроенный URL в Hermes делает IDN-преобразование автоматически
+    const u = new URL(host)
+    return u.toString().replace(/\/$/, '')
+  } catch {
+    return host
+  }
+}
+
 function InputRow({
   label, value, onChangeText, hint, keyboard = 'default', secure = false,
 }: {
@@ -32,6 +43,17 @@ function InputRow({
   )
 }
 
+function SectionHeader({ icon, title }: { icon: any; title: string }) {
+  return (
+    <View style={s.sectionHeader}>
+      <View style={s.sectionIcon}>
+        <Feather name={icon} size={13} color={C.textSecondary} />
+      </View>
+      <Text style={s.section}>{title}</Text>
+    </View>
+  )
+}
+
 function SiteForm({
   initial, onSave, onCancel,
 }: {
@@ -40,13 +62,19 @@ function SiteForm({
   onCancel: () => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [serverUrl, setServerUrl] = useState(initial?.serverUrl ?? 'http://192.168.1.100:3001')
+  const [serverUrl, setServerUrl] = useState(initial?.serverUrl ?? 'https://')
   const [token, setToken] = useState(initial?.token ?? 'sesdnr-app-2026')
 
   return (
     <View style={s.siteForm}>
-      <InputRow label="Название" value={name} onChangeText={setName} />
-      <InputRow label="Адрес сервера" value={serverUrl} onChangeText={setServerUrl} keyboard="url" hint="http://IP:3001" />
+      <InputRow label="Название" value={name} onChangeText={setName} hint="Например: sesdnr.ru" />
+      <InputRow
+        label="Адрес сервера"
+        value={serverUrl}
+        onChangeText={setServerUrl}
+        keyboard="url"
+        hint="https://sesdnr.ru  ·  для .рф используйте punycode (xn--...)"
+      />
       <InputRow label="Токен" value={token} onChangeText={setToken} />
       <View style={s.siteFormBtns}>
         <TouchableOpacity style={s.btnCancel} onPress={onCancel}>
@@ -56,9 +84,14 @@ function SiteForm({
           style={s.btnSave}
           onPress={() => {
             if (!name.trim() || !serverUrl.trim()) return
-            onSave({ name: name.trim(), serverUrl: serverUrl.trim(), token: token.trim() })
+            onSave({
+              name: name.trim(),
+              serverUrl: toAscii(serverUrl.trim().replace(/\/$/, '')),
+              token: token.trim(),
+            })
           }}
         >
+          <Feather name="check" size={14} color="#fff" />
           <Text style={s.btnSaveText}>Сохранить</Text>
         </TouchableOpacity>
       </View>
@@ -92,7 +125,7 @@ export default function SettingsScreen() {
   }
 
   const handleDeleteSite = (site: Site) => {
-    Alert.alert('Удалить сайт', `Удалить "${site.name}"?`, [
+    Alert.alert('Удалить сайт', `Удалить «${site.name}»?`, [
       { text: 'Отмена', style: 'cancel' },
       { text: 'Удалить', style: 'destructive', onPress: () => removeSite(site.id) },
     ])
@@ -115,9 +148,9 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Admin name */}
+      {/* Профиль */}
       <View style={s.card}>
-        <Text style={s.section}>👤 ПРОФИЛЬ</Text>
+        <SectionHeader icon="user" title="ПРОФИЛЬ" />
         <InputRow
           label="Ваше имя (видно в чате)"
           value={adminName}
@@ -127,14 +160,16 @@ export default function SettingsScreen() {
         <TouchableOpacity
           style={[s.saveBtn, nameSaved && s.saveBtnOk]}
           onPress={handleSaveName}
+          activeOpacity={0.85}
         >
-          <Text style={s.saveBtnText}>{nameSaved ? '✓ Сохранено' : 'Сохранить имя'}</Text>
+          <Feather name={nameSaved ? 'check' : 'save'} size={14} color="#fff" />
+          <Text style={s.saveBtnText}>{nameSaved ? 'Сохранено' : 'Сохранить имя'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Sites */}
+      {/* Сайты */}
       <View style={s.card}>
-        <Text style={s.section}>🌐 САЙТЫ</Text>
+        <SectionHeader icon="globe" title="САЙТЫ" />
 
         {settings.sites.map((site) => (
           <View key={site.id}>
@@ -152,17 +187,24 @@ export default function SettingsScreen() {
               >
                 <View style={[s.siteIndicator, { backgroundColor: site.id === settings.currentSiteId ? '#7C3AED' : C.border }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.siteName, site.id === settings.currentSiteId && s.siteNameActive]}>
-                    {site.name}
-                    {site.id === settings.currentSiteId ? '  ●' : ''}
-                  </Text>
+                  <View style={s.siteNameRow}>
+                    <Text style={[s.siteName, site.id === settings.currentSiteId && s.siteNameActive]} numberOfLines={1}>
+                      {site.name}
+                    </Text>
+                    {site.id === settings.currentSiteId && (
+                      <View style={s.activeChip}>
+                        <View style={s.activeDot} />
+                        <Text style={s.activeChipText}>активен</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={s.siteUrl} numberOfLines={1}>{site.serverUrl}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setEditingId(site.id)} style={s.siteBtn}>
-                  <Text style={s.siteBtnText}>✎</Text>
+                <TouchableOpacity onPress={() => setEditingId(site.id)} style={s.siteBtn} hitSlop={8}>
+                  <Feather name="edit-2" size={14} color={C.textSecondary} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeleteSite(site)} style={s.siteBtn}>
-                  <Text style={[s.siteBtnText, { color: C.error }]}>✕</Text>
+                <TouchableOpacity onPress={() => handleDeleteSite(site)} style={s.siteBtn} hitSlop={8}>
+                  <Feather name="trash-2" size={14} color={C.error} />
                 </TouchableOpacity>
               </TouchableOpacity>
             )}
@@ -176,33 +218,49 @@ export default function SettingsScreen() {
         {addingNew ? (
           <SiteForm onSave={handleAddSite} onCancel={() => setAddingNew(false)} />
         ) : (
-          <TouchableOpacity style={s.addSiteBtn} onPress={() => setAddingNew(true)}>
-            <Text style={s.addSiteBtnText}>+ Добавить сайт</Text>
+          <TouchableOpacity style={s.addSiteBtn} onPress={() => setAddingNew(true)} activeOpacity={0.7}>
+            <Feather name="plus" size={15} color="#7C3AED" />
+            <Text style={s.addSiteBtnText}>Добавить сайт</Text>
           </TouchableOpacity>
         )}
+
+        <Text style={s.helpHint}>
+          Поддерживаются домены .рф — приложение переводит их в punycode автоматически
+        </Text>
       </View>
 
-      {/* Notifications test */}
+      {/* Уведомления */}
       <View style={s.card}>
-        <Text style={s.section}>🔔 УВЕДОМЛЕНИЯ</Text>
-        <Text style={s.hint}>Нажмите чтобы проверить что уведомления работают (придёт через 1 сек)</Text>
+        <SectionHeader icon="bell" title="УВЕДОМЛЕНИЯ" />
+        <Text style={s.hint}>Проверьте, что push-уведомления работают</Text>
         <TouchableOpacity
           style={[s.saveBtn, { marginTop: 12 }]}
+          activeOpacity={0.85}
           onPress={async () => {
             await sendTestNotification()
             Alert.alert('Отправлено', 'Уведомление придёт через ~1 секунду')
           }}
         >
+          <Feather name="send" size={14} color="#fff" />
           <Text style={s.saveBtnText}>Тест уведомления</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Info */}
+      {/* Инфо */}
       <View style={s.card}>
-        <Text style={s.section}>ℹ️ О ПРИЛОЖЕНИИ</Text>
-        <Text style={s.infoRow}>Администратор: <Text style={s.infoVal}>{settings.adminName}</Text></Text>
-        <Text style={s.infoRow}>Активный сайт: <Text style={s.infoVal}>{settings.sites.find(s => s.id === settings.currentSiteId)?.name ?? '—'}</Text></Text>
-        <Text style={s.infoRow}>Версия: <Text style={s.infoVal}>1.0.0</Text></Text>
+        <SectionHeader icon="info" title="О ПРИЛОЖЕНИИ" />
+        <View style={s.infoRow}>
+          <Text style={s.infoLbl}>Администратор</Text>
+          <Text style={s.infoVal}>{settings.adminName || '—'}</Text>
+        </View>
+        <View style={s.infoRow}>
+          <Text style={s.infoLbl}>Активный сайт</Text>
+          <Text style={s.infoVal}>{settings.sites.find(x => x.id === settings.currentSiteId)?.name ?? '—'}</Text>
+        </View>
+        <View style={s.infoRow}>
+          <Text style={s.infoLbl}>Версия</Text>
+          <Text style={s.infoVal}>1.1.0</Text>
+        </View>
       </View>
     </ScrollView>
   )
@@ -215,60 +273,93 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
     elevation: 6,
+    shadowColor: '#7C3AED', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   headerX: { fontSize: 26, fontWeight: '900', color: '#fff' },
-  appName: { fontSize: 11, fontWeight: '700', color: '#7C3AED', letterSpacing: 1, textTransform: 'uppercase' },
+  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
-  headerSub: { fontSize: 13, color: C.textMuted },
+
   card: {
     backgroundColor: C.card, borderRadius: 16,
-    borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 16,
+    borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 14,
   },
-  section: { fontSize: 11, color: C.textMuted, letterSpacing: 1, fontWeight: '600', marginBottom: 16 },
+
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  sectionIcon: {
+    width: 22, height: 22, borderRadius: 6,
+    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  section: { fontSize: 11, color: C.textMuted, letterSpacing: 1.2, fontWeight: '700' },
+
   row: { marginBottom: 16 },
-  label: { fontSize: 14, color: C.textSecondary, marginBottom: 8 },
+  label: { fontSize: 13, color: C.textSecondary, marginBottom: 8, fontWeight: '500' },
   input: {
     backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
     fontSize: 14, color: C.text,
   },
-  hint: { fontSize: 12, color: C.textMuted, marginTop: 6 },
+  hint: { fontSize: 12, color: C.textMuted, marginTop: 6, lineHeight: 16 },
+  helpHint: { fontSize: 11, color: C.textMuted, marginTop: 12, textAlign: 'center', fontStyle: 'italic' },
+
   saveBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: C.primary, borderRadius: 10, paddingVertical: 12,
-    alignItems: 'center',
   },
   saveBtnOk: { backgroundColor: C.success },
   saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
   siteRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#0d1420', borderRadius: 12, padding: 12, marginBottom: 8,
     borderWidth: 1, borderColor: C.border,
   },
-  siteRowActive: { borderColor: '#7C3AED' },
-  siteIndicator: { width: 4, height: 36, borderRadius: 2 },
-  siteName: { fontSize: 15, fontWeight: '600', color: C.textSecondary },
+  siteRowActive: { borderColor: '#7C3AED55', backgroundColor: '#1a1530' },
+  siteIndicator: { width: 3, height: 36, borderRadius: 1.5 },
+  siteNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  siteName: { fontSize: 15, fontWeight: '600', color: C.textSecondary, flexShrink: 1 },
   siteNameActive: { color: C.text },
   siteUrl: { fontSize: 12, color: C.textMuted, marginTop: 2 },
-  siteBtn: { padding: 6 },
-  siteBtnText: { fontSize: 18, color: C.textSecondary },
+  siteBtn: {
+    width: 30, height: 30, borderRadius: 8,
+    backgroundColor: '#070b15', borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  activeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#7C3AED22', borderRadius: 5,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  activeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#7C3AED' },
+  activeChipText: { color: '#7C3AED', fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+
   noSites: { color: C.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: 16 },
+
   addSiteBtn: {
-    borderWidth: 1, borderColor: '#7C3AED', borderRadius: 10, borderStyle: 'dashed',
-    paddingVertical: 12, alignItems: 'center', marginTop: 4,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1, borderColor: '#7C3AED88', borderRadius: 10, borderStyle: 'dashed',
+    paddingVertical: 12, marginTop: 4,
   },
   addSiteBtnText: { color: '#7C3AED', fontSize: 14, fontWeight: '600' },
+
   siteForm: {
     backgroundColor: '#0d1420', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#7C3AED', marginBottom: 8,
+    borderWidth: 1, borderColor: '#7C3AED66', marginBottom: 8,
   },
   siteFormBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   btnCancel: {
     flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10,
     paddingVertical: 10, alignItems: 'center',
   },
-  btnCancelText: { color: C.textSecondary, fontSize: 14 },
-  btnSave: { flex: 1, backgroundColor: '#7C3AED', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  btnCancelText: { color: C.textSecondary, fontSize: 14, fontWeight: '500' },
+  btnSave: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#7C3AED', borderRadius: 10, paddingVertical: 10,
+  },
   btnSaveText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  infoRow: { fontSize: 14, color: C.textSecondary, marginBottom: 8 },
-  infoVal: { color: C.text, fontWeight: '500' },
+
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
+  infoLbl: { fontSize: 13, color: C.textMuted },
+  infoVal: { fontSize: 13, color: C.text, fontWeight: '600' },
 })

@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { C } from '@/constants/Colors'
 import type { ChatSession } from '@/lib/types'
 
@@ -32,7 +33,7 @@ export default function ChatItem({ session: s, onPress }: Props) {
     >
       {/* Avatar */}
       <View style={[st.avatar, isClosed ? st.avatarClosed : st.avatarActive]}>
-        <Text style={st.avatarText}>👤</Text>
+        <Feather name="user" size={22} color={isClosed ? '#FCA5A5' : '#86EFAC'} />
       </View>
 
       <View style={{ flex: 1 }}>
@@ -76,7 +77,6 @@ const st = StyleSheet.create({
   },
   avatarActive: { backgroundColor: '#14532D' },
   avatarClosed: { backgroundColor: '#3B0A0A' },
-  avatarText: { fontSize: 22 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   name: { fontSize: 15, fontWeight: '700' },
   nameActive: { color: '#86EFAC' },

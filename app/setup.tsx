@@ -11,8 +11,8 @@ import type { Site } from '@/lib/types'
 export default function SetupScreen() {
   const { saveSettings, addSite } = useStore()
   const [adminName, setAdminName] = useState('')
-  const [siteName, setSiteName] = useState('Основной сайт')
-  const [serverUrl, setServerUrl] = useState('http://192.168.1.100:3001')
+  const [siteName, setSiteName] = useState('sesdnr.ru')
+  const [serverUrl, setServerUrl] = useState('https://sesdnr.ru')
   const [token, setToken] = useState('sesdnr-app-2026')
   const [error, setError] = useState('')
 
@@ -78,12 +78,12 @@ export default function SetupScreen() {
           style={s.input}
           value={serverUrl}
           onChangeText={setServerUrl}
-          placeholder="http://192.168.1.100:3001"
+          placeholder="https://sesdnr.ru"
           placeholderTextColor={C.textMuted}
           autoCapitalize="none"
           keyboardType="url"
         />
-        <Text style={s.hint}>Локальный IP компьютера в сети WiFi</Text>
+        <Text style={s.hint}>Боевой URL сайта. Для .рф используйте punycode (xn--...)</Text>
 
         <Text style={s.label}>Токен доступа</Text>
         <TextInput

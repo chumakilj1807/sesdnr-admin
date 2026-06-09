@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
@@ -10,9 +11,9 @@ import { notifyNewMessage } from '@/lib/notifications'
 
 export default function ChatsScreen() {
   const { sessions, setSessions, clearNewMessages, incrementNewMessages } = useStore()
+  const currentSite = useStore(s => s.currentSite())
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  // tracks lastMessageAt per sessionId so we detect new messages reliably
   const lastSeenAt = useRef<Map<string, string | null>>(new Map())
   const initialized = useRef(false)
 
@@ -73,16 +74,27 @@ export default function ChatsScreen() {
         <View style={s.logoWrap}>
           <Text style={s.logoX}>X</Text>
         </View>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={s.appName}>Xenom Manager</Text>
           <Text style={s.title}>Чаты</Text>
-          <Text style={s.sub}>{active.length} активных · {closed.length} закрытых</Text>
+          <View style={s.subRow}>
+            <Text style={s.sub}>{active.length} активных</Text>
+            <View style={s.dot} />
+            <Text style={s.sub}>{closed.length} закрытых</Text>
+          </View>
         </View>
+        {currentSite && (
+          <View style={s.siteBadge}>
+            <Feather name="globe" size={11} color={C.textSecondary} />
+            <Text style={s.siteBadgeText} numberOfLines={1}>{currentSite.name}</Text>
+          </View>
+        )}
       </View>
 
       {error ? (
         <View style={s.errorBanner}>
-          <Text style={s.errorText}>⚠️ {error}</Text>
+          <Feather name="wifi-off" size={14} color={C.error} />
+          <Text style={s.errorText}>{error}</Text>
         </View>
       ) : null}
 
@@ -99,8 +111,11 @@ export default function ChatsScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         ListEmptyComponent={
           <View style={s.empty}>
-            <Text style={s.emptyIcon}>💬</Text>
+            <View style={s.emptyIconWrap}>
+              <Feather name="message-circle" size={28} color={C.textMuted} />
+            </View>
             <Text style={s.emptyText}>Чатов пока нет</Text>
+            <Text style={s.emptySub}>Когда клиент откроет чат на сайте, он появится здесь</Text>
           </View>
         }
       />
@@ -118,14 +133,38 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
     elevation: 6,
+    shadowColor: '#7C3AED', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
-  appName: { fontSize: 11, fontWeight: '700', color: '#7C3AED', letterSpacing: 1, textTransform: 'uppercase' },
-  title: { fontSize: 22, fontWeight: '800', color: C.text },
-  sub: { fontSize: 13, color: C.textMuted, marginTop: 1 },
-  errorBanner: { backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10, padding: 10, marginBottom: 4 },
-  errorText: { color: C.error, fontSize: 13 },
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: C.textMuted, fontSize: 16 },
+  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  sub: { fontSize: 12, color: C.textMuted },
+  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.textMuted },
+
+  siteBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.card, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 1, borderColor: C.border,
+    maxWidth: 140,
+  },
+  siteBadgeText: { color: C.textSecondary, fontSize: 11, fontWeight: '600' },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
+    borderWidth: 1, borderColor: `${C.error}33`,
+  },
+  errorText: { color: C.error, fontSize: 13, flex: 1 },
+
+  empty: { alignItems: 'center', paddingTop: 80 },
+  emptyIconWrap: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  emptyText: { color: C.text, fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  emptySub: { color: C.textMuted, fontSize: 13, textAlign: 'center', paddingHorizontal: 32 },
 })
