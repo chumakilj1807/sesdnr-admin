@@ -13,19 +13,46 @@ interface Props {
   onStatusChange: (id: string, status: string) => void
 }
 
-function formatPhone(raw: string) {
-  // оставляем как есть для отображения; для tel: чистим
-  return raw
-}
-
 function telHref(raw: string) {
   const clean = raw.replace(/[^\d+]/g, '')
   return `tel:${clean}`
 }
 
+// Цветовые наборы по статусу: фон карточки + цвет accent
+const STATUS_THEME: Record<string, {
+  bg: string; border: string; tint: string; tintBorder: string;
+  phoneBg: string; phoneBorder: string; phoneText: string;
+  phoneChipBg: string; phoneChipText: string;
+}> = {
+  new: {
+    bg: C.card, border: C.border, tint: C.primary, tintBorder: `${C.primary}55`,
+    phoneBg: `${C.cyan}15`, phoneBorder: `${C.cyan}55`, phoneText: C.cyan,
+    phoneChipBg: C.cyan, phoneChipText: C.bg,
+  },
+  processing: {
+    // Жёлтый
+    bg: '#2a230a', border: '#5b4915', tint: C.warning, tintBorder: `${C.warning}88`,
+    phoneBg: '#fde68a22', phoneBorder: '#fde68a55', phoneText: '#fde68a',
+    phoneChipBg: '#fbbf24', phoneChipText: '#1f1300',
+  },
+  done: {
+    // Зелёный
+    bg: '#0e2017', border: '#125a37', tint: C.success, tintBorder: `${C.success}88`,
+    phoneBg: '#34d39922', phoneBorder: '#34d39966', phoneText: '#a7f3d0',
+    phoneChipBg: '#10b981', phoneChipText: '#02100b',
+  },
+  cancelled: {
+    // Красный
+    bg: '#241010', border: '#5b1e1e', tint: C.error, tintBorder: `${C.error}88`,
+    phoneBg: '#f8717122', phoneBorder: '#f8717166', phoneText: '#fca5a5',
+    phoneChipBg: '#ef4444', phoneChipText: '#fff',
+  },
+}
+
 export default function BookingCard({ booking: b, onStatusChange }: Props) {
   const [expanded, setExpanded] = useState(false)
 
+  const theme = STATUS_THEME[b.status] ?? STATUS_THEME.new
   const statusColor = STATUS_COLOR[b.status] ?? C.textMuted
   const isNew = b.status === 'new'
   const isDone = b.status === 'done' || b.status === 'cancelled'
@@ -39,9 +66,9 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
   }
 
   const changeStatus = (status: string, label: string) => {
-    Alert.alert(`Статус: ${label}`, `Установить статус «${label}» для заявки?`, [
+    Alert.alert(`Изменить статус`, `Установить статус «${label}» для заявки?`, [
       { text: 'Отмена', style: 'cancel' },
-      { text: label, onPress: () => onStatusChange(b.id, status) },
+      { text: 'Подтвердить', onPress: () => onStatusChange(b.id, status) },
     ])
   }
 
@@ -52,25 +79,25 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
   }
 
   return (
-    <View style={[s.card, isNew && s.cardNew]}>
+    <View style={[
+      s.card,
+      { backgroundColor: theme.bg, borderColor: theme.border },
+      isNew && s.cardNew,
+    ]}>
       {/* Цветной accent слева */}
-      <View style={[s.accent, { backgroundColor: statusColor }]} />
+      <View style={[s.accent, { backgroundColor: theme.tint }]} />
 
-      <TouchableOpacity
-        style={s.body}
-        onPress={() => setExpanded(v => !v)}
-        activeOpacity={0.9}
-      >
+      <View style={s.body}>
         {/* Верхняя строка: тип + сайт + статус */}
         <View style={s.topRow}>
           <View style={s.topLeft}>
-            <View style={s.typeTag}>
+            <View style={[s.typeTag, { backgroundColor: `${theme.tint}22`, borderColor: `${theme.tint}55` }]}>
               <Feather
                 name={b.type === 'callback' ? 'phone-call' : 'clipboard'}
                 size={12}
-                color={C.primary}
+                color={theme.tint}
               />
-              <Text style={s.typeText}>
+              <Text style={[s.typeText, { color: theme.tint }]}>
                 {b.type === 'callback' ? 'Звонок' : 'Заявка'}
               </Text>
             </View>
@@ -83,7 +110,7 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
             ) : null}
           </View>
 
-          <View style={[s.statusTag, { borderColor: `${statusColor}66`, backgroundColor: `${statusColor}1f` }]}>
+          <View style={[s.statusTag, { borderColor: theme.tintBorder, backgroundColor: `${statusColor}22` }]}>
             <View style={[s.statusDot, { backgroundColor: statusColor }]} />
             <Text style={[s.statusText, { color: statusColor }]}>{STATUS_LABEL[b.status]}</Text>
           </View>
@@ -95,14 +122,18 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
         {/* Телефон — кликабельный */}
         <Pressable
           onPress={callPhone}
-          style={({ pressed }) => [s.phoneBtn, pressed && s.phoneBtnPressed]}
+          style={({ pressed }) => [
+            s.phoneBtn,
+            { backgroundColor: theme.phoneBg, borderColor: theme.phoneBorder },
+            pressed && s.phoneBtnPressed,
+          ]}
           hitSlop={6}
         >
-          <Feather name="phone" size={14} color={C.cyan} />
-          <Text style={s.phoneText}>{formatPhone(b.phone)}</Text>
-          <View style={s.phoneCallChip}>
-            <Feather name="phone-call" size={12} color={C.bg} />
-            <Text style={s.phoneCallChipText}>Позвонить</Text>
+          <Feather name="phone" size={14} color={theme.phoneText} />
+          <Text style={[s.phoneText, { color: theme.phoneText }]}>{b.phone}</Text>
+          <View style={[s.phoneCallChip, { backgroundColor: theme.phoneChipBg }]}>
+            <Feather name="phone-call" size={12} color={theme.phoneChipText} />
+            <Text style={[s.phoneCallChipText, { color: theme.phoneChipText }]}>Позвонить</Text>
           </View>
         </Pressable>
 
@@ -135,42 +166,64 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
               <View style={s.actions}>
                 {b.status !== 'processing' && (
                   <TouchableOpacity
-                    style={[s.actionBtn, { borderColor: `${C.warning}80`, backgroundColor: `${C.warning}10` }]}
+                    style={[s.actionBtn, { borderColor: `${C.warning}aa`, backgroundColor: `${C.warning}20` }]}
                     onPress={() => changeStatus('processing', 'В работе')}
+                    activeOpacity={0.7}
                   >
                     <Feather name="activity" size={13} color={C.warning} />
                     <Text style={[s.actionText, { color: C.warning }]}>В работе</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={[s.actionBtn, { borderColor: `${C.success}80`, backgroundColor: `${C.success}10` }]}
+                  style={[s.actionBtn, { borderColor: `${C.success}aa`, backgroundColor: `${C.success}20` }]}
                   onPress={() => changeStatus('done', 'Готово')}
+                  activeOpacity={0.7}
                 >
                   <Feather name="check" size={13} color={C.success} />
                   <Text style={[s.actionText, { color: C.success }]}>Готово</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[s.actionBtn, { borderColor: `${C.error}80`, backgroundColor: `${C.error}10` }]}
+                  style={[s.actionBtn, { borderColor: `${C.error}aa`, backgroundColor: `${C.error}20` }]}
                   onPress={() => changeStatus('cancelled', 'Отмена')}
+                  activeOpacity={0.7}
                 >
                   <Feather name="x" size={13} color={C.error} />
                   <Text style={[s.actionText, { color: C.error }]}>Отмена</Text>
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Для завершённых — кнопка вернуть в "новые" */}
+            {isDone && (
+              <View style={s.actions}>
+                <TouchableOpacity
+                  style={[s.actionBtn, { borderColor: `${C.primary}aa`, backgroundColor: `${C.primary}20` }]}
+                  onPress={() => changeStatus('new', 'Новая')}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="rotate-ccw" size={13} color={C.primary} />
+                  <Text style={[s.actionText, { color: C.primary }]}>Вернуть в новые</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
 
-        {/* Hint раскрытия */}
-        <View style={s.expandRow}>
+        {/* Отдельная кнопка раскрытия — НЕ перекрывает action-кнопки */}
+        <TouchableOpacity
+          style={s.expandRow}
+          onPress={() => setExpanded(v => !v)}
+          activeOpacity={0.6}
+          hitSlop={6}
+        >
           <Feather
             name={expanded ? 'chevron-up' : 'chevron-down'}
             size={14}
             color={C.textMuted}
           />
           <Text style={s.expandHint}>{expanded ? 'свернуть' : 'подробнее'}</Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     </View>
   )
 }
@@ -191,17 +244,13 @@ function InfoRow({ icon, label, value }: { icon: any; label: string; value: stri
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: C.card,
     borderRadius: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: C.border,
     flexDirection: 'row',
     overflow: 'hidden',
   },
   cardNew: {
-    borderColor: `${C.primary}55`,
-    backgroundColor: '#10182a',
     shadowColor: C.primary,
     shadowOpacity: 0.2,
     shadowRadius: 14,
@@ -216,16 +265,16 @@ const s = StyleSheet.create({
 
   typeTag: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: C.primaryDim, borderRadius: 6,
+    borderRadius: 6, borderWidth: 1,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  typeText: { color: C.primary, fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  typeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
 
   siteTag: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#0d1420', borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 6,
     paddingHorizontal: 8, paddingVertical: 4,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     maxWidth: 180,
   },
   siteText: { color: C.textSecondary, fontSize: 11, fontWeight: '600' },
@@ -241,29 +290,28 @@ const s = StyleSheet.create({
 
   phoneBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: `${C.cyan}10`,
-    borderWidth: 1, borderColor: `${C.cyan}33`,
+    borderWidth: 1,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
     marginBottom: 10,
   },
-  phoneBtnPressed: { backgroundColor: `${C.cyan}1f`, borderColor: `${C.cyan}55` },
-  phoneText: { color: C.cyan, fontSize: 15, fontWeight: '600', flex: 1 },
+  phoneBtnPressed: { opacity: 0.85 },
+  phoneText: { fontSize: 15, fontWeight: '700', flex: 1 },
   phoneCallChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: C.cyan, borderRadius: 6,
+    borderRadius: 6,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  phoneCallChipText: { color: C.bg, fontSize: 11, fontWeight: '700' },
+  phoneCallChipText: { fontSize: 11, fontWeight: '700' },
 
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   date: { fontSize: 12, color: C.textMuted },
 
-  expanded: { marginTop: 14, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
+  expanded: { marginTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 12 },
 
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   infoIconWrap: {
     width: 26, height: 26, borderRadius: 7,
-    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+    backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
   infoLabel: { fontSize: 11, color: C.textMuted, marginBottom: 1, textTransform: 'uppercase', letterSpacing: 0.4 },
@@ -273,10 +321,13 @@ const s = StyleSheet.create({
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     borderWidth: 1, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8,
+    paddingHorizontal: 14, paddingVertical: 9,
   },
-  actionText: { fontSize: 13, fontWeight: '600' },
+  actionText: { fontSize: 13, fontWeight: '700' },
 
-  expandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 10 },
-  expandHint: { fontSize: 11, color: C.textMuted, fontWeight: '500' },
+  expandRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    marginTop: 12, paddingVertical: 6,
+  },
+  expandHint: { fontSize: 11, color: C.textMuted, fontWeight: '600' },
 })
