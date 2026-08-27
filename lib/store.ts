@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { configureApi } from './api'
-import type { Booking, ChatSession, Message, AppSettings, Site } from './types'
+import type { Booking, ChatSession, Message, AppSettings, NotifySettings, Site } from './types'
+
+const DEFAULT_NOTIFY: NotifySettings = { bookings: true, chats: true, calls: true, mail: true }
 
 interface AppState {
   settings: AppSettings
@@ -10,6 +12,8 @@ interface AppState {
   messages: Record<string, Message[]>
   newBookingsCount: number
   newMessagesCount: number
+  newCallsCount: number
+  newMailCount: number
   initialized: boolean
 
   currentSite: () => Site | null
@@ -30,8 +34,12 @@ interface AppState {
   replaceMessage: (tempId: string, real: Message) => void
   clearNewBookings: () => void
   clearNewMessages: () => void
+  clearNewCalls: () => void
+  clearNewMail: () => void
   incrementNewBookings: () => void
   incrementNewMessages: () => void
+  incrementNewCalls: (n?: number) => void
+  incrementNewMail: (n?: number) => void
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -39,6 +47,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   setupDone: false,
   sites: [],
   currentSiteId: '',
+  notify: DEFAULT_NOTIFY,
 }
 
 // Singleton API оставлен для chat detail screen, чтобы старая страница тоже работала.
@@ -59,6 +68,8 @@ export const useStore = create<AppState>((set, get) => ({
   messages: {},
   newBookingsCount: 0,
   newMessagesCount: 0,
+  newCallsCount: 0,
+  newMailCount: 0,
   initialized: false,
 
   currentSite: () => {
@@ -91,6 +102,7 @@ export const useStore = create<AppState>((set, get) => ({
               setupDone: old.setupDone ?? false,
               sites: [migratedSite],
               currentSiteId: 'site_default',
+              notify: { ...DEFAULT_NOTIFY },
             }
             await persist(migrated)
             set({ settings: migrated, initialized: true })
@@ -101,8 +113,13 @@ export const useStore = create<AppState>((set, get) => ({
         set({ initialized: true })
         return
       }
-      const saved = JSON.parse(raw) as AppSettings
-      const settings = { ...DEFAULT_SETTINGS, ...saved }
+      const saved = JSON.parse(raw) as Partial<AppSettings>
+      const settings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        ...saved,
+        // старые сохранённые настройки могут не содержать notify — мержим с дефолтом
+        notify: { ...DEFAULT_NOTIFY, ...(saved.notify ?? {}) },
+      }
       set({ settings, initialized: true })
       applyCurrentSite(settings)
     } catch {
@@ -197,6 +214,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   clearNewBookings: () => set({ newBookingsCount: 0 }),
   clearNewMessages: () => set({ newMessagesCount: 0 }),
+  clearNewCalls: () => set({ newCallsCount: 0 }),
+  clearNewMail: () => set({ newMailCount: 0 }),
   incrementNewBookings: () => set((s) => ({ newBookingsCount: s.newBookingsCount + 1 })),
   incrementNewMessages: () => set((s) => ({ newMessagesCount: s.newMessagesCount + 1 })),
+  incrementNewCalls: (n = 1) => set((s) => ({ newCallsCount: s.newCallsCount + n })),
+  incrementNewMail: (n = 1) => set((s) => ({ newMailCount: s.newMailCount + n })),
 }))

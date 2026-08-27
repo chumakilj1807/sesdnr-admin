@@ -8,6 +8,26 @@ const OBJ_LABEL: Record<string, string> = {
   apartment: 'Квартира', house: 'Дом', commercial: 'Коммерческое', land: 'Участок',
 }
 
+// Русские подписи для известных полей payload; неизвестные ключи показываются как есть
+const PAYLOAD_LABEL: Record<string, string> = {
+  objectType: 'Объект', area: 'Площадь', address: 'Адрес', service: 'Услуга',
+  comment: 'Комментарий', date: 'Дата', timeSlot: 'Время', notes: 'Заметки',
+}
+
+// Эти поля показаны в карточке отдельно (имя/телефон/статус/дата создания) — не дублируем
+const PAYLOAD_SKIP = new Set(['id', 'type', 'name', 'phone', 'status', 'createdAt', 'siteId', 'siteName'])
+
+function formatPayloadValue(key: string, v: unknown): string | null {
+  if (v === null || v === undefined || v === '') return null
+  if (key === 'objectType' && typeof v === 'string') return OBJ_LABEL[v] ?? v
+  if (key === 'area' && (typeof v === 'number' || typeof v === 'string')) return `${v} м²`
+  if (Array.isArray(v)) return v.length > 0 ? v.map(String).join(', ') : null
+  if (typeof v === 'object') {
+    try { return JSON.stringify(v) } catch { return null }
+  }
+  return String(v)
+}
+
 interface Props {
   booking: Booking
   onStatusChange: (id: string, status: string) => void
@@ -56,6 +76,24 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
   const statusColor = STATUS_COLOR[b.status] ?? C.textMuted
   const isNew = b.status === 'new'
   const isDone = b.status === 'done' || b.status === 'cancelled'
+
+  // Универсальные поля формы: всё непустое из payload, что не показано выше отдельными строками.
+  // Заявки с новых сайтов с произвольными полями отображаются без изменений кода.
+  const payloadEntries: { key: string; label: string; value: string }[] = []
+  if (b.payload) {
+    for (const [key, raw] of Object.entries(b.payload)) {
+      if (PAYLOAD_SKIP.has(key)) continue
+      const value = formatPayloadValue(key, raw)
+      if (value === null) continue
+      // не дублируем, если то же поле уже выведено из top-level колонок
+      if (key === 'objectType' && b.objectType) continue
+      if (key === 'area' && b.area != null) continue
+      if (key === 'address' && b.address) continue
+      if ((key === 'date' || key === 'timeSlot') && b.date) continue
+      if (key === 'notes' && b.notes) continue
+      payloadEntries.push({ key, label: PAYLOAD_LABEL[key] ?? key, value })
+    }
+  }
 
   const formatDate = (iso: string) => {
     try {
@@ -161,6 +199,11 @@ export default function BookingCard({ booking: b, onStatusChange }: Props) {
             {b.notes && (
               <InfoRow icon="edit-3" label="Заметки" value={b.notes} />
             )}
+
+            {/* Произвольные поля формы сайта */}
+            {payloadEntries.map((e) => (
+              <InfoRow key={e.key} icon="tag" label={e.label} value={e.value} />
+            ))}
 
             {!isDone && (
               <View style={s.actions}>

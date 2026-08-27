@@ -21,7 +21,7 @@ function Badge({ count }: { count: number }) {
 }
 
 export default function TabLayout() {
-  const { newBookingsCount, newMessagesCount } = useStore()
+  const { newBookingsCount, newMessagesCount, newCallsCount, newMailCount } = useStore()
 
   return (
     <Tabs
@@ -37,7 +37,7 @@ export default function TabLayout() {
         },
         tabBarActiveTintColor: '#7C3AED',
         tabBarInactiveTintColor: C.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
       }}
     >
       <Tabs.Screen
@@ -62,6 +62,37 @@ export default function TabLayout() {
               <Badge count={newMessagesCount} />
             </View>
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="mail"
+        options={{
+          title: 'Почта',
+          tabBarIcon: ({ color }) => (
+            <View>
+              <Feather name="mail" size={22} color={color} />
+              <Badge count={newMailCount} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="calls"
+        options={{
+          title: 'Звонки',
+          tabBarIcon: ({ color }) => (
+            <View>
+              <Feather name="phone" size={22} color={color} />
+              <Badge count={newCallsCount} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Статистика',
+          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
       <Tabs.Screen

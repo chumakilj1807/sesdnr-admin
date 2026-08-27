@@ -27,6 +27,22 @@ export async function setupNotifications() {
       sound: 'default',
       enableVibrate: true,
     })
+    await Notifications.setNotificationChannelAsync('calls', {
+      name: 'Клики по номеру',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 200, 200, 200],
+      lightColor: '#7C3AED',
+      sound: 'default',
+      enableVibrate: true,
+    })
+    await Notifications.setNotificationChannelAsync('mail', {
+      name: 'Новые письма',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 150],
+      lightColor: '#7C3AED',
+      sound: 'default',
+      enableVibrate: true,
+    })
   }
   const { status } = await Notifications.requestPermissionsAsync()
   return status === 'granted'
@@ -73,6 +89,44 @@ export async function notifyNewMessage(sessionId: string, preview?: string) {
     })
   } catch (e) {
     console.warn('notifyNewMessage failed:', e)
+  }
+}
+
+export async function notifyNewCall(siteName: string, count = 1) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📞 Клик по номеру',
+        body: count > 1
+          ? `${count} кликов по номеру, последний — на ${siteName}`
+          : `Клик по номеру на ${siteName}`,
+        sound: true,
+        data: { screen: 'calls' },
+        priority: 'max',
+      } as any,
+      trigger: trigger('calls'),
+    })
+  } catch (e) {
+    console.warn('notifyNewCall failed:', e)
+  }
+}
+
+export async function notifyNewMail(count: number, siteName?: string) {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '✉️ Новое письмо',
+        body: count > 1
+          ? `${count} новых писем во входящих`
+          : `Новое письмо${siteName ? ` · ${siteName}` : ''} — нажмите чтобы прочитать`,
+        sound: true,
+        data: { screen: 'mail' },
+        priority: 'high',
+      } as any,
+      trigger: trigger('mail'),
+    })
+  } catch (e) {
+    console.warn('notifyNewMail failed:', e)
   }
 }
 

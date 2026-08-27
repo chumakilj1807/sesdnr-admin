@@ -85,6 +85,10 @@ export default function RootLayout() {
       const data = response.notification.request.content.data as any
       if (data?.screen === 'chats' && data?.sessionId) {
         router.push(`/chat/${data.sessionId}` as any)
+      } else if (data?.screen === 'mail') {
+        router.push('/(tabs)/mail' as any)
+      } else if (data?.screen === 'calls') {
+        router.push('/(tabs)/calls' as any)
       }
     })
 
@@ -119,6 +123,14 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen
               name="chat/[sessionId]"
+              options={{ headerShown: false, presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="mail/[id]"
+              options={{ headerShown: false, presentation: 'card' }}
+            />
+            <Stack.Screen
+              name="mail/compose"
               options={{ headerShown: false, presentation: 'card' }}
             />
           </>

@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Alert,
+  ScrollView, Alert, Switch,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { sendTestNotification } from '@/lib/notifications'
-import type { Site } from '@/lib/types'
+import type { NotifySettings, Site } from '@/lib/types'
+
+const NOTIFY_OPTIONS: { key: keyof NotifySettings; label: string; hint: string; icon: any }[] = [
+  { key: 'bookings', label: 'Заявки', hint: 'Новые заявки и обратные звонки', icon: 'clipboard' },
+  { key: 'chats', label: 'Чаты', hint: 'Новые сообщения от клиентов', icon: 'message-circle' },
+  { key: 'calls', label: 'Звонки', hint: 'Клики по номеру на сайтах', icon: 'phone' },
+  { key: 'mail', label: 'Почта', hint: 'Новые входящие письма', icon: 'mail' },
+]
 
 // Преобразуем `дезинсек.рф` → `xn--d1acahfnt6a.xn--p1ai` (нужно для fetch)
 function toAscii(host: string): string {
@@ -222,7 +229,34 @@ export default function SettingsScreen() {
       {/* Уведомления */}
       <View style={s.card}>
         <SectionHeader icon="bell" title="УВЕДОМЛЕНИЯ" />
-        <Text style={s.hint}>Проверьте, что push-уведомления работают</Text>
+
+        {NOTIFY_OPTIONS.map((opt) => {
+          const enabled = settings.notify?.[opt.key] ?? true
+          return (
+            <View key={opt.key} style={s.toggleRow}>
+              <View style={s.toggleIcon}>
+                <Feather name={opt.icon} size={14} color={C.textSecondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.toggleLabel}>{opt.label}</Text>
+                <Text style={s.toggleHint}>{opt.hint}</Text>
+              </View>
+              <Switch
+                value={enabled}
+                onValueChange={(v) =>
+                  saveSettings({ notify: { ...settings.notify, [opt.key]: v } })
+                }
+                trackColor={{ false: C.border, true: '#7C3AED' }}
+                thumbColor="#fff"
+              />
+            </View>
+          )
+        })}
+        <Text style={s.hint}>
+          Выключенный тип: события по-прежнему собираются в приложении, но пуши не приходят
+        </Text>
+
+        <Text style={[s.hint, { marginTop: 14 }]}>Проверьте, что push-уведомления работают</Text>
         <TouchableOpacity
           style={[s.saveBtn, { marginTop: 12 }]}
           activeOpacity={0.85}
@@ -325,6 +359,19 @@ const s = StyleSheet.create({
   activeChipText: { color: '#7C3AED', fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
 
   noSites: { color: C.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: 16 },
+
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#0d1420', borderRadius: 12, padding: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: C.border,
+  },
+  toggleIcon: {
+    width: 30, height: 30, borderRadius: 8,
+    backgroundColor: '#070b15', borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  toggleLabel: { fontSize: 14, fontWeight: '600', color: C.text },
+  toggleHint: { fontSize: 11, color: C.textMuted, marginTop: 1 },
 
   addSiteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,

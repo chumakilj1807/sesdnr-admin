@@ -5,11 +5,21 @@ export interface Site {
   token: string
 }
 
+// Переключатели push-уведомлений по типам событий.
+// false = события по-прежнему собираются в приложение, но пуши не приходят.
+export interface NotifySettings {
+  bookings: boolean
+  chats: boolean
+  calls: boolean
+  mail: boolean
+}
+
 export interface AppSettings {
   adminName: string
   setupDone: boolean
   sites: Site[]
   currentSiteId: string // deprecated — оставлено для совместимости со старой версией
+  notify: NotifySettings
 }
 
 export interface Booking {
@@ -26,6 +36,34 @@ export interface Booking {
   notes: string | null
   createdAt: string
   // С какого сайта пришла заявка — заполняется при агрегации feed
+  siteId: string
+  siteName: string
+  // Произвольные поля формы сайта (у разных сайтов разные формы).
+  // Всё, что не name/phone, показывается в карточке как «поле: значение».
+  payload: Record<string, unknown> | null
+}
+
+export interface MailItem {
+  id: string
+  from: string
+  to: string | null
+  subject: string | null
+  snippet: string | null
+  date: string // ISO
+  read: boolean
+  siteId: string
+  siteName: string
+}
+
+export interface MailDetail extends MailItem {
+  body: string | null
+}
+
+// Событие клика по номеру телефона на сайте
+export interface CallEvent {
+  id: string
+  page: string | null
+  ts: string // ISO
   siteId: string
   siteName: string
 }

@@ -22,6 +22,7 @@ const FILTERS = [
 export default function BookingsScreen() {
   const { bookings, setBookings, updateBooking, clearNewBookings, incrementNewBookings } = useStore()
   const sites = useStore(s => s.settings.sites)
+  const notifyOn = useStore(s => s.settings.notify?.bookings ?? true)
   const siteById = useStore(s => s.siteById)
   const [filter, setFilter] = useState('all')
   const [siteFilter, setSiteFilter] = useState<string>('all')
@@ -56,7 +57,7 @@ export default function BookingsScreen() {
         const newOnes = remote.filter((b) => !knownIds.current.has(b.id) && b.status === 'new')
         if (newOnes.length > 0) {
           for (let i = 0; i < newOnes.length; i++) incrementNewBookings()
-          await notifyNewBooking(newOnes.length)
+          if (notifyOn) await notifyNewBooking(newOnes.length)
         }
       }
 
@@ -76,7 +77,7 @@ export default function BookingsScreen() {
       })
       const interval = setInterval(syncFromServer, 8000)
       return () => clearInterval(interval)
-    }, [sites.length])
+    }, [sites.length, notifyOn])
   )
 
   const onRefresh = async () => {

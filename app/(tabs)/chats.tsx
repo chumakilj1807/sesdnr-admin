@@ -12,6 +12,7 @@ import { notifyNewMessage } from '@/lib/notifications'
 export default function ChatsScreen() {
   const { sessions, setSessions, clearNewMessages, incrementNewMessages } = useStore()
   const sites = useStore(s => s.settings.sites)
+  const notifyOn = useStore(s => s.settings.notify?.chats ?? true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const lastSeenAt = useRef<Map<string, string | null>>(new Map())
@@ -44,7 +45,7 @@ export default function ChatsScreen() {
 
           if (hasNewMsg) {
             incrementNewMessages()
-            await notifyNewMessage(s.id, s.lastMessage ?? undefined)
+            if (notifyOn) await notifyNewMessage(s.id, s.lastMessage ?? undefined)
           }
         }
 
@@ -64,7 +65,7 @@ export default function ChatsScreen() {
       sync()
       const t = setInterval(sync, 6000)
       return () => clearInterval(t)
-    }, [sites.length])
+    }, [sites.length, notifyOn])
   )
 
   const onRefresh = async () => {
