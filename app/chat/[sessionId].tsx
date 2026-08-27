@@ -9,6 +9,7 @@ import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { fetchMessages, sendMessage, sendTyping, closeChat } from '@/lib/api'
 import { getMessages, upsertMessage, updateSessionStatus } from '@/lib/db'
+import { stopChatRing } from '@/lib/chatRing'
 import type { Message } from '@/lib/types'
 
 export default function ChatScreen() {
@@ -26,6 +27,11 @@ export default function ChatScreen() {
   const msgs = storeMessages[sessionId] ?? []
   const session = sessions.find((s) => s.id === sessionId)
   const site = session ? siteById(session.siteId) : null
+
+  // Открыли конкретный чат — глушим «входящий звонок»
+  useEffect(() => {
+    stopChatRing()
+  }, [sessionId])
 
   // Если оператор уже отправлял join-сообщение в этой сессии — считаем подключённым
   useEffect(() => {

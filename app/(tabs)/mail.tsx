@@ -48,6 +48,7 @@ export default function MailScreen() {
   const incrementNewMail = useStore(s => s.incrementNewMail)
   const [box, setBox] = useState<MailBox>('inbox')
   const [mails, setMails] = useState<MailItem[]>([])
+  const [siteFilter, setSiteFilter] = useState<string>('all')
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [unsupported, setUnsupported] = useState<Site[]>([])
@@ -177,6 +178,9 @@ export default function MailScreen() {
   const allUnsupported =
     sites.length > 0 && unsupported.length === sites.length && mails.length === 0
 
+  // Список с учётом фильтра по сайту
+  const filteredMails = siteFilter === 'all' ? mails : mails.filter(m => m.siteId === siteFilter)
+
   return (
     <View style={s.container}>
       <View style={s.header}>
@@ -220,6 +224,38 @@ export default function MailScreen() {
         })}
       </View>
 
+      {/* Фильтр по сайтам — только если их больше одного */}
+      {sites.length > 1 && (
+        <View style={s.siteFilters}>
+          <TouchableOpacity
+            style={[s.siteChip, siteFilter === 'all' && s.siteChipActive]}
+            onPress={() => setSiteFilter('all')}
+            activeOpacity={0.7}
+          >
+            <Feather name="layers" size={11} color={siteFilter === 'all' ? '#7C3AED' : C.textSecondary} />
+            <Text style={[s.siteChipText, siteFilter === 'all' && s.siteChipTextActive]}>Все сайты</Text>
+          </TouchableOpacity>
+          {sites.map(site => {
+            const count = mails.filter(m => m.siteId === site.id).length
+            const active = siteFilter === site.id
+            return (
+              <TouchableOpacity
+                key={site.id}
+                style={[s.siteChip, active && s.siteChipActive]}
+                onPress={() => setSiteFilter(site.id)}
+                activeOpacity={0.7}
+              >
+                <Feather name="globe" size={11} color={active ? '#7C3AED' : C.textSecondary} />
+                <Text style={[s.siteChipText, active && s.siteChipTextActive]} numberOfLines={1}>
+                  {site.name}
+                </Text>
+                {count > 0 && <Text style={[s.siteChipCount, active && s.siteChipCountActive]}>{count}</Text>}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      )}
+
       {box === 'spam' && (
         <TouchableOpacity
           style={s.blocksBtn}
@@ -249,7 +285,7 @@ export default function MailScreen() {
       )}
 
       <FlatList
-        data={mails}
+        data={filteredMails}
         keyExtractor={(item) => `${item.siteId}:${item.id}`}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -406,6 +442,23 @@ const s = StyleSheet.create({
   boxChipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
   boxChipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
   boxChipTextActive: { color: '#7C3AED' },
+
+  siteFilters: {
+    flexDirection: 'row', paddingHorizontal: 16, gap: 6, marginBottom: 8, flexWrap: 'wrap',
+  },
+  siteChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, maxWidth: 200,
+  },
+  siteChipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  siteChipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
+  siteChipTextActive: { color: '#7C3AED' },
+  siteChipCount: {
+    backgroundColor: C.border, borderRadius: 8, paddingHorizontal: 5,
+    fontSize: 10, fontWeight: '700', color: C.textSecondary, marginLeft: 2,
+  },
+  siteChipCountActive: { backgroundColor: '#7C3AED', color: '#fff' },
 
   blocksBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

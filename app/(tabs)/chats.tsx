@@ -8,6 +8,7 @@ import { fetchAllChats } from '@/lib/api'
 import { getSessions, upsertSession } from '@/lib/db'
 import ChatItem from '@/components/ChatItem'
 import { notifyNewMessage } from '@/lib/notifications'
+import { stopChatRing } from '@/lib/chatRing'
 
 export default function ChatsScreen() {
   const { sessions, setSessions, clearNewMessages, incrementNewMessages } = useStore()
@@ -61,6 +62,8 @@ export default function ChatsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Открыли список чатов — глушим «входящий звонок»
+      stopChatRing()
       clearNewMessages()
       sync()
       const t = setInterval(sync, 6000)

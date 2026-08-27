@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
+import { setupChatRingCategory } from './chatRing'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -45,6 +46,8 @@ export async function setupNotifications() {
     })
   }
   const { status } = await Notifications.requestPermissionsAsync()
+  // Action-кнопки «Открыть чат» / «Отключить» для режима «входящий звонок»
+  await setupChatRingCategory()
   return status === 'granted'
 }
 

@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store'
 import { configureApi } from './api'
 import type { Booking, ChatSession, Message, AppSettings, NotifySettings, Site } from './types'
 
-const DEFAULT_NOTIFY: NotifySettings = { bookings: true, chats: true, calls: true, mail: true }
+const DEFAULT_NOTIFY: NotifySettings = { bookings: true, chats: true, calls: true, mail: true, chatRing: true }
 
 interface AppState {
   settings: AppSettings

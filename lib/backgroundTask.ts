@@ -7,6 +7,7 @@ import {
   getCallEvents, upsertCallEvent, getMail, upsertMail,
 } from './db'
 import { notifyNewBooking, notifyNewCall, notifyNewMail, notifyNewMessage } from './notifications'
+import { startChatRing } from './chatRing'
 import type { AppSettings, NotifySettings } from './types'
 
 export const BG_TASK = 'XENOM_BG_SYNC'
@@ -28,6 +29,7 @@ TaskManager.defineTask(BG_TASK, async () => {
       chats: savedNotify.chats ?? true,
       calls: savedNotify.calls ?? true,
       mail: savedNotify.mail ?? true,
+      chatRing: savedNotify.chatRing ?? true,
     }
 
     // Bookings — параллельно со всех сайтов
@@ -50,6 +52,8 @@ TaskManager.defineTask(BG_TASK, async () => {
       const hasNewMsg = !isNewSession && s.lastSender === 'user' && s.lastMessageAt !== prev
       if ((isNewSession && s.lastSender === 'user') || hasNewMsg) {
         if (notify.chats) await notifyNewMessage(s.id, s.lastMessage ?? undefined)
+        // Режим «входящий звонок»: рингтон + sticky-уведомление
+        if (notify.chats && notify.chatRing) await startChatRing(s.id, s.lastMessage ?? undefined)
       }
       await upsertSession(s)
     }

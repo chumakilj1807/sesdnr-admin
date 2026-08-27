@@ -14,6 +14,7 @@ const NOTIFY_OPTIONS: { key: keyof NotifySettings; label: string; hint: string; 
   { key: 'chats', label: 'Чаты', hint: 'Новые сообщения от клиентов', icon: 'message-circle' },
   { key: 'calls', label: 'Звонки', hint: 'Клики по номеру на сайтах', icon: 'phone' },
   { key: 'mail', label: 'Почта', hint: 'Новые входящие письма', icon: 'mail' },
+  { key: 'chatRing', label: 'Мелодия при сообщении в чате', hint: 'Играет рингтон, пока вы не откроете чат или не отключите', icon: 'bell' },
 ]
 
 // Преобразуем `дезинсек.рф` → `xn--d1acahfnt6a.xn--p1ai` (нужно для fetch)

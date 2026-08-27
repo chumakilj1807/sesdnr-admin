@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications'
 import * as SecureStore from 'expo-secure-store'
 import { useStore } from '@/lib/store'
 import { setupNotifications } from '@/lib/notifications'
+import { stopChatRing, CHAT_RING_OPEN, CHAT_RING_STOP } from '@/lib/chatRing'
 import { registerBackgroundSync } from '@/lib/backgroundTask'
 import { registerPushTokenEverywhere, debugPing } from '@/lib/api'
 
@@ -83,6 +84,21 @@ export default function RootLayout() {
     notifListener.current = Notifications.addNotificationReceivedListener(() => {})
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as any
+      const action = response.actionIdentifier
+
+      // Режим «входящий звонок»: «✕ Отключить» — глушим рингтон, приложение не открываем
+      if (action === CHAT_RING_STOP) {
+        stopChatRing()
+        return
+      }
+      // «Открыть чат» или обычный тап по sticky-уведомлению — глушим рингтон и идём в чат
+      if (action === CHAT_RING_OPEN || data?.chatRing) {
+        stopChatRing()
+        if (data?.sessionId) router.push(`/chat/${data.sessionId}` as any)
+        else router.push('/(tabs)/chats' as any)
+        return
+      }
+
       if (data?.screen === 'chats' && data?.sessionId) {
         router.push(`/chat/${data.sessionId}` as any)
       } else if (data?.screen === 'mail') {

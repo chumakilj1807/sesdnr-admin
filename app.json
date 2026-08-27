@@ -32,7 +32,8 @@
       ],
       "expo-task-manager",
       "expo-background-fetch",
-      "expo-font"
+      "expo-font",
+      "expo-audio"
     ],
     "scheme": "xenom-manager",
     "experiments": {

@@ -5,6 +5,16 @@ import { useFocusEffect } from 'expo-router'
 import { C, STATUS_LABEL } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { getBookings, getCallEvents, getMail, getSessions } from '@/lib/db'
+import type { Booking } from '@/lib/types'
+
+// Тестовая заявка: подстрока «тест» (регистронезависимо) в имени,
+// заметках или в любом строковом значении произвольных полей формы.
+// Из статистики исключаем, но из БД не удаляем.
+export function isTestBooking(b: Booking): boolean {
+  const values: unknown[] = [b.name, b.notes]
+  if (b.payload) values.push(...Object.values(b.payload))
+  return values.some(v => typeof v === 'string' && v.toLowerCase().includes('тест'))
+}
 
 // Ключ месяца YYYY-MM из ISO-даты
 const monthKey = (iso: string) => (iso ?? '').slice(0, 7)
@@ -51,21 +61,24 @@ export default function StatsScreen() {
     }, [])
   )
 
+  // Тестовые заявки не участвуют ни в одном счётчике статистики
+  const realBookings = useMemo(() => bookings.filter(b => !isTestBooking(b)), [bookings])
+
   // Месяцы, в которых есть хоть какие-то данные (для чипов фильтра)
   const availableMonths = useMemo(() => {
     const keys = new Set<string>()
-    for (const b of bookings) keys.add(monthKey(b.createdAt))
+    for (const b of realBookings) keys.add(monthKey(b.createdAt))
     for (const s of sessions) keys.add(monthKey(s.createdAt))
     for (const m of mails) keys.add(monthKey(m.date))
     for (const c of calls) keys.add(monthKey(c.ts))
     keys.delete('')
     return [...keys].sort().reverse().slice(0, 6)
-  }, [bookings, sessions, mails, calls])
+  }, [realBookings, sessions, mails, calls])
 
   const inSite = (siteId: string) => siteFilter === 'all' || siteId === siteFilter
   const inMonth = (iso: string) => monthFilter === 'all' || monthKey(iso) === monthFilter
 
-  const fBookings = bookings.filter(b => inSite(b.siteId) && inMonth(b.createdAt))
+  const fBookings = realBookings.filter(b => inSite(b.siteId) && inMonth(b.createdAt))
   const fSessions = sessions.filter(s => inSite(s.siteId) && inMonth(s.createdAt))
   const fMails = mails.filter(m => inSite(m.siteId) && inMonth(m.date))
   const fCalls = calls.filter(c => inSite(c.siteId) && inMonth(c.ts))
@@ -77,19 +90,27 @@ export default function StatsScreen() {
     cancelled: fBookings.filter(b => b.status === 'cancelled').length,
   }
 
-  // График: заявки по месяцам (последние 6), с учётом фильтра по сайту
-  const chartMonths = lastMonths(6)
+  // График: заявки по месяцам — последние 6 месяцев плюс ВСЕ месяцы,
+  // в которых есть заявки (по возрастанию, максимум 12 колонок)
+  const chartMonths = useMemo(() => {
+    const keys = new Set(lastMonths(6))
+    for (const b of realBookings) {
+      const k = monthKey(b.createdAt)
+      if (k) keys.add(k)
+    }
+    return [...keys].sort().slice(-12)
+  }, [realBookings])
   const chartData = chartMonths.map(k => ({
     key: k,
     label: monthLabel(k),
-    count: bookings.filter(b => inSite(b.siteId) && monthKey(b.createdAt) === k).length,
+    count: realBookings.filter(b => inSite(b.siteId) && monthKey(b.createdAt) === k).length,
   }))
   const chartMax = Math.max(1, ...chartData.map(d => d.count))
 
   // Сводка по каждому сайту (без учёта фильтров)
   const perSite = sites.map(site => ({
     site,
-    bookings: bookings.filter(b => b.siteId === site.id),
+    bookings: realBookings.filter(b => b.siteId === site.id),
     mails: mails.filter(m => m.siteId === site.id).length,
     calls: calls.filter(c => c.siteId === site.id).length,
     chats: sessions.filter(x => x.siteId === site.id).length,

@@ -12,6 +12,9 @@ export interface NotifySettings {
   chats: boolean
   calls: boolean
   mail: boolean
+  // Режим «входящий звонок»: зацикленная мелодия + sticky-уведомление
+  // при новом сообщении в чате, пока оператор не откроет чат
+  chatRing: boolean
 }
 
 export interface AppSettings {
