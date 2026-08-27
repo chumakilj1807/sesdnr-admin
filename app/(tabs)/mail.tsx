@@ -1,15 +1,27 @@
 import { useCallback, useRef, useState } from 'react'
 import {
   View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity,
+  Modal, ScrollView, Alert,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
-import { fetchAllMail } from '@/lib/api'
-import { getMail, upsertMail } from '@/lib/db'
+import {
+  fetchAllMail, fetchAllMailBlocks, moveMail, setMailBlock,
+  type MailBlock,
+} from '@/lib/api'
+import { getMail, setMailBoxLocal, upsertMail } from '@/lib/db'
 import { notifyNewMail } from '@/lib/notifications'
-import type { MailItem, Site } from '@/lib/types'
+import type { MailBox, MailItem, Site } from '@/lib/types'
+
+const BOXES: { key: MailBox; label: string; icon: any }[] = [
+  { key: 'inbox', label: 'Входящие', icon: 'inbox' },
+  { key: 'sent', label: 'Исходящие', icon: 'send' },
+  { key: 'drafts', label: 'Черновики', icon: 'file-text' },
+  { key: 'spam', label: 'Спам', icon: 'slash' },
+  { key: 'trash', label: 'Удалённые', icon: 'trash-2' },
+]
 
 function formatDate(iso: string) {
   try {
@@ -22,30 +34,41 @@ function formatDate(iso: string) {
   } catch { return iso }
 }
 
+// Извлечь email из "Имя <email@site.ru>" → email@site.ru
+function extractEmail(from: string): string {
+  const m = from.match(/<([^>]+)>/)
+  return (m ? m[1] : from).trim()
+}
+
 export default function MailScreen() {
   const sites = useStore(s => s.settings.sites)
+  const siteById = useStore(s => s.siteById)
   const notifyOn = useStore(s => s.settings.notify.mail)
   const clearNewMail = useStore(s => s.clearNewMail)
   const incrementNewMail = useStore(s => s.incrementNewMail)
+  const [box, setBox] = useState<MailBox>('inbox')
   const [mails, setMails] = useState<MailItem[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [unsupported, setUnsupported] = useState<Site[]>([])
+  const [blocksVisible, setBlocksVisible] = useState(false)
+  const [blocks, setBlocks] = useState<MailBlock[]>([])
+  const [blocksLoading, setBlocksLoading] = useState(false)
   const knownIds = useRef<Set<string>>(new Set())
   const initialized = useRef(false)
 
-  const loadFromDb = async () => {
-    const local = await getMail()
+  const loadFromDb = async (b: MailBox) => {
+    const local = await getMail(b)
     setMails(local)
     for (const m of local) knownIds.current.add(`${m.siteId}:${m.id}`)
   }
 
-  const sync = async () => {
+  const sync = async (b: MailBox) => {
     if (sites.length === 0) return
     try {
-      const { items, errors, unsupported: uns } = await fetchAllMail(sites)
-      for (const m of items) await upsertMail(m)
-      setMails(await getMail())
+      const { items, errors, unsupported: uns } = await fetchAllMail(sites, b)
+      for (const m of items) await upsertMail(m, b)
+      setMails(await getMail(b))
       setUnsupported(uns)
 
       if (errors.length > 0 && items.length === 0 && uns.length < sites.length) {
@@ -56,7 +79,8 @@ export default function MailScreen() {
         setError('')
       }
 
-      if (initialized.current) {
+      // Пушим только про входящие — остальные папки тихо синкаются
+      if (b === 'inbox' && initialized.current) {
         const fresh = items.filter((m) => !knownIds.current.has(`${m.siteId}:${m.id}`))
         if (fresh.length > 0) {
           incrementNewMail(fresh.length)
@@ -73,26 +97,80 @@ export default function MailScreen() {
   useFocusEffect(
     useCallback(() => {
       clearNewMail()
-      loadFromDb().then(() => {
+      // смена папки — сбрасываем «что уже видели», чтобы не слать пуши про старое
+      knownIds.current = new Set()
+      initialized.current = false
+      loadFromDb(box).then(() => {
         initialized.current = true
-        sync()
+        sync(box)
       })
-      const t = setInterval(sync, 30000)
+      const t = setInterval(() => sync(box), 30000)
       return () => clearInterval(t)
-    }, [sites.length, notifyOn])
+    }, [sites.length, notifyOn, box])
   )
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await sync()
+    await sync(box)
     setRefreshing(false)
   }
 
   const openMail = (m: MailItem) => {
+    if (box === 'drafts') {
+      // Черновик открываем сразу в редакторе
+      router.push({
+        pathname: '/mail/compose',
+        params: {
+          siteId: m.siteId,
+          to: m.to ?? '',
+          subject: m.subject ?? '',
+          body: m.body ?? m.snippet ?? '',
+          draftId: m.id,
+        },
+      } as any)
+      return
+    }
     router.push({
       pathname: '/mail/[id]',
       params: { id: m.id, siteId: m.siteId },
     } as any)
+  }
+
+  // «Не спам»: вернуть во входящие + снять блокировку отправителя
+  const notSpam = async (m: MailItem) => {
+    const site = siteById(m.siteId)
+    if (!site) return
+    await setMailBoxLocal(m.siteId, m.id, 'inbox')
+    setMails(await getMail(box))
+    try {
+      await moveMail(site, m.id, 'inbox')
+      await setMailBlock(site, extractEmail(m.from), false)
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось отправить команду на сервер — письмо вернётся при следующей синхронизации')
+    }
+  }
+
+  const loadBlocks = async () => {
+    setBlocksLoading(true)
+    try {
+      const { items } = await fetchAllMailBlocks(sites)
+      setBlocks(items)
+    } catch {
+      setBlocks([])
+    } finally {
+      setBlocksLoading(false)
+    }
+  }
+
+  const unblock = async (b: MailBlock) => {
+    const site = siteById(b.siteId)
+    if (!site) return
+    try {
+      await setMailBlock(site, b.email, false)
+      setBlocks(prev => prev.filter(x => !(x.siteId === b.siteId && x.email === b.email)))
+    } catch {
+      Alert.alert('Ошибка', 'Не удалось разблокировать адрес')
+    }
   }
 
   // Почтовый эндпоинт отсутствует на всех подключённых сайтах
@@ -124,6 +202,36 @@ export default function MailScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Переключатель папок */}
+      <View style={s.boxes}>
+        {BOXES.map(b => {
+          const active = box === b.key
+          return (
+            <TouchableOpacity
+              key={b.key}
+              style={[s.boxChip, active && s.boxChipActive]}
+              onPress={() => setBox(b.key)}
+              activeOpacity={0.7}
+            >
+              <Feather name={b.icon} size={11} color={active ? '#7C3AED' : C.textSecondary} />
+              <Text style={[s.boxChipText, active && s.boxChipTextActive]}>{b.label}</Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+
+      {box === 'spam' && (
+        <TouchableOpacity
+          style={s.blocksBtn}
+          onPress={() => { setBlocksVisible(true); loadBlocks() }}
+          activeOpacity={0.7}
+        >
+          <Feather name="slash" size={13} color={C.warning} />
+          <Text style={s.blocksBtnText}>Заблокированные адреса</Text>
+          <Feather name="chevron-right" size={13} color={C.textMuted} />
+        </TouchableOpacity>
+      )}
+
       {error ? (
         <View style={s.errorBanner}>
           <Feather name="wifi-off" size={14} color={C.error} />
@@ -152,7 +260,9 @@ export default function MailScreen() {
             <View style={s.mailTop}>
               {!item.read && <View style={s.unreadDot} />}
               <Text style={[s.mailFrom, !item.read && s.mailFromUnread]} numberOfLines={1}>
-                {item.from || 'Неизвестный отправитель'}
+                {box === 'sent' || box === 'drafts'
+                  ? (item.to ? `Кому: ${item.to}` : 'Без получателя')
+                  : (item.from || 'Неизвестный отправитель')}
               </Text>
               <Text style={s.mailDate}>{formatDate(item.date)}</Text>
             </View>
@@ -162,9 +272,28 @@ export default function MailScreen() {
             {item.snippet ? (
               <Text style={s.mailSnippet} numberOfLines={2}>{item.snippet}</Text>
             ) : null}
-            <View style={s.siteTag}>
-              <Feather name="globe" size={10} color={C.textSecondary} />
-              <Text style={s.siteText} numberOfLines={1}>{item.siteName}</Text>
+            <View style={s.mailBottom}>
+              <View style={s.siteTag}>
+                <Feather name="globe" size={10} color={C.textSecondary} />
+                <Text style={s.siteText} numberOfLines={1}>{item.siteName}</Text>
+              </View>
+              {box === 'spam' && (
+                <TouchableOpacity
+                  style={s.notSpamBtn}
+                  onPress={() => notSpam(item)}
+                  activeOpacity={0.7}
+                  hitSlop={6}
+                >
+                  <Feather name="check-circle" size={12} color={C.success} />
+                  <Text style={s.notSpamText}>Не спам</Text>
+                </TouchableOpacity>
+              )}
+              {box === 'drafts' && (
+                <View style={s.draftHint}>
+                  <Feather name="edit" size={11} color={C.textMuted} />
+                  <Text style={s.draftHintText}>открыть в редакторе</Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         )}
@@ -180,18 +309,63 @@ export default function MailScreen() {
                 ? 'Не добавлен ни один сайт'
                 : allUnsupported
                   ? 'Почтовый сервер этого сайта не настроен'
-                  : 'Писем пока нет'}
+                  : `В папке «${BOXES.find(b => b.key === box)?.label}» пусто`}
             </Text>
             <Text style={s.emptySub}>
               {sites.length === 0
                 ? 'Откройте «Настройки» и добавьте сайт'
                 : allUnsupported
                   ? 'Добавьте эндпоинт /api/app/mail на сайт, чтобы читать почту здесь'
-                  : 'Новые письма появятся здесь автоматически'}
+                  : box === 'inbox'
+                    ? 'Новые письма появятся здесь автоматически'
+                    : 'Письма появятся здесь после синхронизации'}
             </Text>
           </View>
         }
       />
+
+      {/* Список заблокированных адресов */}
+      <Modal
+        visible={blocksVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setBlocksVisible(false)}
+      >
+        <View style={s.modalBackdrop}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Заблокированные адреса</Text>
+              <TouchableOpacity onPress={() => setBlocksVisible(false)} hitSlop={8}>
+                <Feather name="x" size={20} color={C.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {blocksLoading ? (
+                <Text style={s.modalEmpty}>Загрузка…</Text>
+              ) : blocks.length === 0 ? (
+                <Text style={s.modalEmpty}>Нет заблокированных адресов</Text>
+              ) : (
+                blocks.map(b => (
+                  <View key={`${b.siteId}:${b.email}`} style={s.blockRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.blockEmail} numberOfLines={1}>{b.email}</Text>
+                      <Text style={s.blockSite}>{b.siteName}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={s.unblockBtn}
+                      onPress={() => unblock(b)}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="unlock" size={12} color={C.primary} />
+                      <Text style={s.unblockText}>Разблокировать</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -200,7 +374,7 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
+    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 12,
   },
   logoWrap: {
     width: 44, height: 44, borderRadius: 12,
@@ -219,6 +393,27 @@ const s = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
   },
+
+  boxes: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+    paddingHorizontal: 16, marginBottom: 10,
+  },
+  boxChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+  },
+  boxChipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  boxChipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
+  boxChipTextActive: { color: '#7C3AED' },
+
+  blocksBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 16, marginBottom: 8, borderRadius: 10,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  blocksBtnText: { flex: 1, fontSize: 13, color: C.textSecondary, fontWeight: '600' },
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -248,13 +443,54 @@ const s = StyleSheet.create({
   mailSubject: { fontSize: 14, color: C.textSecondary, marginBottom: 2 },
   mailSnippet: { fontSize: 12, color: C.textMuted, lineHeight: 17, marginTop: 2 },
 
+  mailBottom: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   siteTag: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1,
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 6,
-    paddingHorizontal: 8, paddingVertical: 3, marginTop: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', maxWidth: 200,
   },
   siteText: { color: C.textSecondary, fontSize: 10, fontWeight: '600' },
+
+  notSpamBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: `${C.success}66`, borderRadius: 8,
+    backgroundColor: `${C.success}18`,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  notSpamText: { fontSize: 12, fontWeight: '700', color: C.success },
+
+  draftHint: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  draftHintText: { fontSize: 11, color: C.textMuted },
+
+  modalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderWidth: 1, borderColor: C.border, padding: 20, paddingBottom: 36,
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: C.text },
+  modalEmpty: { color: C.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: 24 },
+  blockRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+    padding: 12, marginBottom: 8,
+  },
+  blockEmail: { fontSize: 14, fontWeight: '600', color: C.text },
+  blockSite: { fontSize: 11, color: C.textMuted, marginTop: 1 },
+  unblockBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: `${C.primary}66`, borderRadius: 8,
+    backgroundColor: C.primaryDim,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  unblockText: { fontSize: 12, fontWeight: '700', color: C.primary },
 
   empty: { alignItems: 'center', paddingTop: 80 },
   emptyIconWrap: {

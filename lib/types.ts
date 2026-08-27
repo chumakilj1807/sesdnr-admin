@@ -43,6 +43,9 @@ export interface Booking {
   payload: Record<string, unknown> | null
 }
 
+// Папки почты, поддерживаемые bridge-эндпоинтом ?box=
+export type MailBox = 'inbox' | 'sent' | 'drafts' | 'spam' | 'trash'
+
 export interface MailItem {
   id: string
   from: string
@@ -51,6 +54,10 @@ export interface MailItem {
   snippet: string | null
   date: string // ISO
   read: boolean
+  // В какой папке письмо лежит локально (заполняет слой синка, не API)
+  box?: MailBox
+  // Тело письма — сервер может отдавать его сразу в списке (черновики)
+  body?: string | null
   siteId: string
   siteName: string
 }

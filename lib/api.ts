@@ -1,4 +1,4 @@
-import type { Booking, CallEvent, ChatSession, MailDetail, MailItem, Message, Site } from './types'
+import type { Booking, CallEvent, ChatSession, MailBox, MailDetail, MailItem, Message, Site } from './types'
 
 // Глобальный «текущий» — сохранён только для обратной совместимости со старыми
 // местами; новые вызовы принимают `Site` явно
@@ -175,12 +175,13 @@ function mapMail(site: Site, m: any): MailItem {
     snippet: m.snippet ?? m.preview ?? null,
     date: m.date ?? m.createdAt ?? new Date().toISOString(),
     read: !!m.read,
+    body: m.body ?? null,
     siteId: site.id,
     siteName: site.name,
   }
 }
 
-export const fetchMailFor = async (site: Site, box = 'inbox', since?: string): Promise<MailItem[]> => {
+export const fetchMailFor = async (site: Site, box: MailBox = 'inbox', since?: string): Promise<MailItem[]> => {
   const raw = await req<any[]>(
     site,
     `/api/app/mail?box=${encodeURIComponent(box)}${since ? `&since=${encodeURIComponent(since)}` : ''}`
@@ -209,6 +210,84 @@ export const sendMail = (
     }),
   })
 
+// Перемещение письма между папками.
+// TODO(contract): PATCH /api/app/mail/[id] { box: 'inbox' | 'spam' | 'trash' }
+export const moveMail = (site: Site, id: string, box: MailBox) =>
+  req<{ ok?: boolean }>(site, `/api/app/mail/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ box }),
+  })
+
+// Блокировка/разблокировка отправителя. Заблокированные хранятся на сервере,
+// сервер перестаёт отдавать их письма во входящие.
+// TODO(contract): POST /api/app/mail/block { email, blocked }
+export const setMailBlock = (site: Site, email: string, blocked: boolean) =>
+  req<{ ok?: boolean }>(site, '/api/app/mail/block', {
+    method: 'POST',
+    body: JSON.stringify({ email, blocked }),
+  })
+
+export interface MailBlock {
+  email: string
+  siteId: string
+  siteName: string
+}
+
+// TODO(contract): GET /api/app/mail/blocks → [{ email }] (принимаем и строки, и объекты)
+export const fetchMailBlocksFor = async (site: Site): Promise<MailBlock[]> => {
+  const raw = await req<any>(site, '/api/app/mail/blocks')
+  const list: any[] = Array.isArray(raw) ? raw : (raw?.blocks ?? raw?.items ?? [])
+  return list
+    .map((b) => (typeof b === 'string' ? b : b?.email))
+    .filter(Boolean)
+    .map((email: string) => ({ email, siteId: site.id, siteName: site.name }))
+}
+
+export async function fetchAllMailBlocks(sites: Site[]): Promise<AggregateResult<MailBlock>> {
+  const results = await Promise.allSettled(sites.map((s) => fetchMailBlocksFor(s)))
+  const items: MailBlock[] = []
+  const errors: AggregateResult<MailBlock>['errors'] = []
+  const unsupported: Site[] = []
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      items.push(...r.value)
+    } else if (errStatus(r.reason) === 404) {
+      unsupported.push(sites[i])
+    } else {
+      errors.push({
+        siteId: sites[i].id,
+        siteName: sites[i].name,
+        error: String(r.reason?.message ?? r.reason),
+      })
+    }
+  })
+  return { items, errors, unsupported }
+}
+
+// Черновики.
+// TODO(contract): POST /api/app/mail/drafts { to, subject, body, site }
+export const saveMailDraft = (
+  site: Site,
+  draft: { to: string; subject: string; body: string }
+) =>
+  req<{ ok?: boolean; id?: string }>(site, '/api/app/mail/drafts', {
+    method: 'POST',
+    body: JSON.stringify({
+      to: draft.to,
+      subject: draft.subject,
+      body: draft.body,
+      site: site.serverUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
+    }),
+  })
+
+// После отправки письма из черновика черновик удаляем.
+// TODO(contract): выбран DELETE /api/app/mail/drafts/[id]
+// (если сервер реализует PATCH вместо DELETE — поменять method здесь)
+export const deleteMailDraft = (site: Site, id: string) =>
+  req<{ ok?: boolean }>(site, `/api/app/mail/drafts/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+
 export interface AggregateResult<T> {
   items: T[]
   errors: { siteId: string; siteName: string; error: string }[]
@@ -217,7 +296,7 @@ export interface AggregateResult<T> {
 
 export async function fetchAllMail(
   sites: Site[],
-  box = 'inbox',
+  box: MailBox = 'inbox',
   since?: string
 ): Promise<AggregateResult<MailItem>> {
   const results = await Promise.allSettled(sites.map((s) => fetchMailFor(s, box, since)))

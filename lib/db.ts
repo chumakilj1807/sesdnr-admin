@@ -38,6 +38,7 @@ export async function getDb() {
       body TEXT,
       date TEXT NOT NULL,
       read INTEGER NOT NULL DEFAULT 0,
+      box TEXT NOT NULL DEFAULT 'inbox',
       PRIMARY KEY (siteId, id)
     );
 
@@ -82,6 +83,7 @@ export async function getDb() {
   await ensureColumn('bookings', 'payload', 'TEXT')
   await ensureColumn('chat_sessions', 'siteId', "TEXT NOT NULL DEFAULT ''")
   await ensureColumn('chat_sessions', 'siteName', "TEXT NOT NULL DEFAULT ''")
+  await ensureColumn('mail', 'box', "TEXT NOT NULL DEFAULT 'inbox'")
   return _db
 }
 
@@ -201,6 +203,7 @@ export async function getLastMessageId(sessionId: string): Promise<string | null
 type MailRow = {
   id: string; siteId: string; siteName: string; sender: string; recipient: string | null
   subject: string | null; snippet: string | null; body: string | null; date: string; read: number
+  box: string
 }
 
 function parseMail(row: MailRow): MailItem & { body: string | null } {
@@ -213,25 +216,28 @@ function parseMail(row: MailRow): MailItem & { body: string | null } {
     body: row.body,
     date: row.date,
     read: row.read === 1,
+    box: (row.box ?? 'inbox') as MailItem['box'],
     siteId: row.siteId,
     siteName: row.siteName,
   }
 }
 
-// upsert не затирает read/body, если сервер их не прислал
-export async function upsertMail(m: MailItem) {
+// upsert не затирает read/body/box, если сервер их не прислал:
+// локальная папка (box) авторитетна — сервер мог вернуть письмо в старой папке
+export async function upsertMail(m: MailItem, box = 'inbox') {
   const db = await getDb()
   await db.runAsync(
-    `INSERT INTO mail (id, siteId, siteName, sender, recipient, subject, snippet, date, read)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO mail (id, siteId, siteName, sender, recipient, subject, snippet, body, date, read, box)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(siteId, id) DO UPDATE SET
        sender = excluded.sender,
        recipient = excluded.recipient,
        subject = excluded.subject,
        snippet = excluded.snippet,
-       date = excluded.date`,
+       date = excluded.date,
+       body = COALESCE(excluded.body, mail.body)`,
     [m.id, m.siteId, m.siteName, m.from, m.to ?? null, m.subject ?? null,
-     m.snippet ?? null, m.date, m.read ? 1 : 0]
+     m.snippet ?? null, m.body ?? null, m.date, m.read ? 1 : 0, box]
   )
 }
 
@@ -240,9 +246,12 @@ export async function saveMailBody(siteId: string, id: string, body: string) {
   await db.runAsync('UPDATE mail SET body = ? WHERE siteId = ? AND id = ?', [body, siteId, id])
 }
 
-export async function getMail(): Promise<MailItem[]> {
+// box задан — только эта папка; не задан — все письма (для статистики)
+export async function getMail(box?: string): Promise<MailItem[]> {
   const db = await getDb()
-  const rows = await db.getAllAsync<MailRow>('SELECT * FROM mail ORDER BY date DESC')
+  const rows = box
+    ? await db.getAllAsync<MailRow>('SELECT * FROM mail WHERE box = ? ORDER BY date DESC', [box])
+    : await db.getAllAsync<MailRow>('SELECT * FROM mail ORDER BY date DESC')
   return rows.map(parseMail)
 }
 
@@ -252,6 +261,16 @@ export async function getMailById(siteId: string, id: string) {
     'SELECT * FROM mail WHERE siteId = ? AND id = ?', [siteId, id]
   )
   return row ? parseMail(row) : null
+}
+
+export async function setMailBoxLocal(siteId: string, id: string, box: string) {
+  const db = await getDb()
+  await db.runAsync('UPDATE mail SET box = ? WHERE siteId = ? AND id = ?', [box, siteId, id])
+}
+
+export async function deleteMailLocal(siteId: string, id: string) {
+  const db = await getDb()
+  await db.runAsync('DELETE FROM mail WHERE siteId = ? AND id = ?', [siteId, id])
 }
 
 export async function markMailRead(siteId: string, id: string) {

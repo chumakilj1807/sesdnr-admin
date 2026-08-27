@@ -115,10 +115,10 @@ export async function notifyNewMail(count: number, siteName?: string) {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '✉️ Новое письмо',
+        title: '📬 Почта · новое письмо',
         body: count > 1
-          ? `${count} новых писем во входящих`
-          : `Новое письмо${siteName ? ` · ${siteName}` : ''} — нажмите чтобы прочитать`,
+          ? `${count} новых писем${siteName ? ` — последнее на ${siteName}` : ''}`
+          : siteName ?? 'Нажмите чтобы прочитать',
         sound: true,
         data: { screen: 'mail' },
         priority: 'high',

@@ -6,21 +6,25 @@ import { Feather } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
-import { sendMail } from '@/lib/api'
+import { deleteMailDraft, saveMailDraft, sendMail } from '@/lib/api'
+import { deleteMailLocal } from '@/lib/db'
 import type { Site } from '@/lib/types'
 
 export default function MailComposeScreen() {
   const params = useLocalSearchParams<{
     siteId?: string; to?: string; subject?: string; inReplyTo?: string
+    body?: string; draftId?: string
   }>()
   const sites = useStore(s => s.settings.sites)
   const [siteId, setSiteId] = useState(params.siteId ?? sites[0]?.id ?? '')
   const [to, setTo] = useState(params.to ?? '')
   const [subject, setSubject] = useState(params.subject ?? '')
-  const [body, setBody] = useState('')
+  const [body, setBody] = useState(params.body ?? '')
   const [sending, setSending] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
 
   const isReply = !!params.inReplyTo
+  const isDraft = !!params.draftId
   const selectedSite: Site | null = sites.find(x => x.id === siteId) ?? null
 
   const handleSend = async () => {
@@ -44,6 +48,11 @@ export default function MailComposeScreen() {
         body: body.trim(),
         inReplyTo: params.inReplyTo,
       })
+      // Письмо из черновика отправлено — черновик удаляем (сервер + локальный кэш)
+      if (params.draftId) {
+        await deleteMailDraft(selectedSite, params.draftId).catch(() => {})
+        await deleteMailLocal(selectedSite.id, params.draftId).catch(() => {})
+      }
       Alert.alert('Отправлено', `Письмо отправлено через ${selectedSite.name}`)
       router.back()
     } catch (e: any) {
@@ -58,6 +67,41 @@ export default function MailComposeScreen() {
     }
   }
 
+  const handleSaveDraft = async () => {
+    if (!selectedSite) {
+      Alert.alert('Не выбран сайт', 'Выберите сайт, к которому привязать черновик')
+      return
+    }
+    if (!to.trim() && !subject.trim() && !body.trim()) {
+      Alert.alert('Пустой черновик', 'Заполните хотя бы одно поле')
+      return
+    }
+    setSavingDraft(true)
+    try {
+      await saveMailDraft(selectedSite, {
+        to: to.trim(),
+        subject: subject.trim(),
+        body: body.trim(),
+      })
+      // Старый черновик, из которого редактировали, заменён новым
+      if (params.draftId) {
+        await deleteMailDraft(selectedSite, params.draftId).catch(() => {})
+        await deleteMailLocal(selectedSite.id, params.draftId).catch(() => {})
+      }
+      Alert.alert('Сохранено', 'Черновик сохранён — найдёте его в папке «Черновики»')
+      router.back()
+    } catch (e: any) {
+      Alert.alert(
+        'Ошибка',
+        e?.message?.includes('404')
+          ? 'Почтовый сервер этого сайта не настроен'
+          : `Сервер ответил: ${e?.message ?? 'неизвестная ошибка'}`
+      )
+    } finally {
+      setSavingDraft(false)
+    }
+  }
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: C.bg }}
@@ -68,7 +112,9 @@ export default function MailComposeScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
           <Feather name="x" size={20} color={C.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>{isReply ? 'Ответ' : 'Новое письмо'}</Text>
+        <Text style={s.headerTitle}>
+          {isReply ? 'Ответ' : isDraft ? 'Черновик' : 'Новое письмо'}
+        </Text>
       </View>
 
       {/* От какого сайта отправить */}
@@ -148,6 +194,22 @@ export default function MailComposeScreen() {
           </>
         )}
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[s.draftBtn, (savingDraft || sites.length === 0) && { opacity: 0.6 }]}
+        onPress={handleSaveDraft}
+        disabled={savingDraft || sites.length === 0}
+        activeOpacity={0.85}
+      >
+        {savingDraft ? (
+          <ActivityIndicator color={C.textSecondary} size="small" />
+        ) : (
+          <>
+            <Feather name="file-text" size={14} color={C.textSecondary} />
+            <Text style={s.draftBtnText}>Сохранить в черновики</Text>
+          </>
+        )}
+      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -190,4 +252,11 @@ const s = StyleSheet.create({
     backgroundColor: C.primary, borderRadius: 10, paddingVertical: 13, marginTop: 4,
   },
   sendBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  draftBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    borderRadius: 10, paddingVertical: 12, marginTop: 10,
+  },
+  draftBtnText: { color: C.textSecondary, fontSize: 14, fontWeight: '600' },
 })
