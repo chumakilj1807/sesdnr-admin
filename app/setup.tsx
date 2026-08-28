@@ -7,6 +7,7 @@ import { router } from 'expo-router'
 import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import type { Site } from '@/lib/types'
+import AppLogo from '@/components/AppLogo'
 
 export default function SetupScreen() {
   const { saveSettings, addSite } = useStore()
@@ -38,8 +39,8 @@ export default function SetupScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={s.logoArea}>
-        <View style={s.logoCircle}>
-          <Text style={s.logoX}>X</Text>
+        <View style={{ marginBottom: 16 }}>
+          <AppLogo size={80} radius={24} />
         </View>
         <Text style={s.logoTitle}>Xenom Manager</Text>
         <Text style={s.logoSub}>Настройте приложение для начала работы</Text>
@@ -108,11 +109,6 @@ export default function SetupScreen() {
 const s = StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 60 },
   logoArea: { alignItems: 'center', marginBottom: 32 },
-  logoCircle: {
-    width: 80, height: 80, borderRadius: 24,
-    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
-  logoX: { fontSize: 42, fontWeight: '900', color: '#fff', letterSpacing: -2 },
   logoTitle: { fontSize: 26, fontWeight: '800', color: C.text, marginBottom: 6, letterSpacing: -0.5 },
   logoSub: { fontSize: 14, color: C.textSecondary, textAlign: 'center' },
   card: {

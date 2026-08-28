@@ -72,6 +72,23 @@ export function daysOfMonth(mk: string): string[] {
   return Array.from({ length: n }, (_, i) => `${mk}-${String(i + 1).padStart(2, '0')}`)
 }
 
+// Ключ дня YYYY-MM-DD из локальной даты
+export const localDayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// Все дни от startKey до endKey включительно (ключи YYYY-MM-DD)
+export function daysRange(startKey: string, endKey: string): string[] {
+  const [sy, sm, sd] = startKey.split('-').map(Number)
+  const [ey, em, ed] = endKey.split('-').map(Number)
+  if (!sy || !sm || !sd || !ey || !em || !ed) return []
+  const end = new Date(ey, em - 1, ed)
+  const out: string[] = []
+  for (let d = new Date(sy, sm - 1, sd); d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    out.push(localDayKey(d))
+  }
+  return out
+}
+
 // ── Подписи ───────────────────────────────────────────────────────────────────
 export function monthLabel(key: string) {
   const [y, m] = key.split('-').map(Number)
@@ -81,7 +98,17 @@ export function monthLabel(key: string) {
 
 export function axisLabel(key: string, g: Granularity) {
   if (g === 'month') return monthLabel(key)
-  return key.slice(8, 10) // день месяца
+  // В дневном режиме подпись с месяцем: «12 авг.»
+  return `${Number(key.slice(8, 10))} ${monthLabel(key.slice(0, 7))}`
+}
+
+// Подпись видимого диапазона: «август 2026» или «мар. — авг. 2026»
+export function rangeTitle(firstKey: string, lastKey: string, g: Granularity): string {
+  const f = g === 'day' ? monthKey(firstKey) : firstKey
+  const l = g === 'day' ? monthKey(lastKey) : lastKey
+  if (!f || !l) return ''
+  if (f === l) return monthTitle(f)
+  return `${monthLabel(f)} — ${monthLabel(l)} ${l.slice(0, 4)}`
 }
 
 export function monthTitle(key: string) {

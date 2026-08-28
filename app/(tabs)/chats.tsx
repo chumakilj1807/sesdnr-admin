@@ -7,6 +7,7 @@ import { useStore } from '@/lib/store'
 import { fetchAllChats } from '@/lib/api'
 import { getSessions, upsertSession } from '@/lib/db'
 import ChatItem from '@/components/ChatItem'
+import AppLogo from '@/components/AppLogo'
 import { notifyNewMessage } from '@/lib/notifications'
 import { stopChatRing } from '@/lib/chatRing'
 
@@ -83,9 +84,7 @@ export default function ChatsScreen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.logoWrap}>
-          <Text style={s.logoX}>X</Text>
-        </View>
+        <AppLogo />
         <View style={{ flex: 1 }}>
           <Text style={s.appName}>Xenom Manager</Text>
           <Text style={s.title}>Чаты</Text>
@@ -143,13 +142,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
   },
-  logoWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#7C3AED', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
-  },
-  logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
   appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },

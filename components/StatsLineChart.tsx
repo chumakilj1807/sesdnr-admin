@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import Svg, { Circle, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg'
+import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native'
+import Svg, { Circle, G, Line, Polyline, Text as SvgText } from 'react-native-svg'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { runOnJS } from 'react-native-reanimated'
-import { Feather } from '@expo/vector-icons'
 import { C } from '@/constants/Colors'
-import { axisLabel, type Granularity, type SeriesId, type SeriesPoint } from '@/lib/statsSeries'
+import { axisLabel, rangeTitle, type Granularity, type SeriesId, type SeriesPoint } from '@/lib/statsSeries'
 
 export const SERIES_META: Record<SeriesId, { label: string; color: string; icon: string }> = {
   bookings: { label: 'Заявки', color: C.primary, icon: 'clipboard' },
@@ -22,8 +21,6 @@ const PAD_R = 10
 const PAD_T = 12
 const PAD_B = 24 // подписи оси X
 const GRID_LINES = 4
-const MIN_DAY_WINDOW = 7 // минимум видимых дней при максимальном зуме
-const DEFAULT_DAY_WINDOW = 14
 const MARKER_LIMIT = 45 // больше точек в окне — маркеры не рисуем
 
 interface Props {
@@ -32,8 +29,9 @@ interface Props {
   visible: Record<SeriesId, boolean>
   selectedKey: string | null
   onSelect: (key: string) => void
-  // В обзорном (месячном) режиме щипок на увеличение — просьба перейти на дни
-  onZoomToDays?: () => void
+  // Размер окна в точках для дневного режима (управляется кнопками-лупами).
+  // Не задан — показываем всё.
+  windowSize?: number
 }
 
 // «Красивый» максимум оси Y: 1, 2, 5 * 10^k не ниже реального максимума
@@ -51,7 +49,7 @@ export default function StatsLineChart({
   visible,
   selectedKey,
   onSelect,
-  onZoomToDays,
+  windowSize,
 }: Props) {
   const [width, setWidth] = useState(0)
   // Окно просмотра: count — сколько точек видно, end — индекс правой точки
@@ -60,21 +58,21 @@ export default function StatsLineChart({
 
   const n = points.length
 
-  // При смене набора данных — дефолтное окно
+  // Смена режима или набора данных — окно прижимаем к правому (свежему) краю
   useEffect(() => {
-    if (granularity === 'month') {
-      setWinCount(n)
-      setWinEnd(n - 1)
-    } else {
-      setWinCount(Math.min(DEFAULT_DAY_WINDOW, n))
-      setWinEnd(n - 1)
-    }
+    setWinEnd(n - 1)
   }, [granularity, n])
 
+  // Размер окна: месячный режим — все точки; дневной — windowSize (лупы)
+  useEffect(() => {
+    const target = Math.max(1, Math.min(granularity === 'month' ? n : windowSize ?? n, n))
+    setWinCount(target)
+    setWinEnd(e => Math.min(n - 1, Math.max(target - 1, e)))
+  }, [granularity, n, windowSize])
+
   // Рефы для колбэков жестов (worklets видят актуальные значения)
-  const stateRef = useRef({ winCount, winEnd, n, granularity })
-  stateRef.current = { winCount, winEnd, n, granularity }
-  const baseCount = useRef(winCount)
+  const stateRef = useRef({ winCount, winEnd, n })
+  stateRef.current = { winCount, winEnd, n }
   const baseEnd = useRef(winEnd)
 
   const plotW = Math.max(0, width - PAD_L - PAD_R)
@@ -103,45 +101,14 @@ export default function StatsLineChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [window, visible, yMax, plotW])
 
-  // ── Жесты ─────────────────────────────────────────────────────────────────
-  const applyPinch = (scale: number) => {
-    const st = stateRef.current
-    if (st.granularity !== 'day') return // в месячном режиме зума окна нет — только переход на дни
-    const next = Math.round(baseCount.current / scale)
-    const clamped = Math.max(MIN_DAY_WINDOW, Math.min(st.n, next))
-    setWinCount(clamped)
-    setWinEnd(e => Math.min(st.n - 1, Math.max(clamped - 1, e)))
-  }
-
+  // ── Жесты: свайп листает окно, тап выбирает точку ──────────────────────────
   const applyPan = (tx: number) => {
     const st = stateRef.current
-    if (st.granularity !== 'day' || spacing <= 0) return
+    if (st.winCount >= st.n || spacing <= 0) return
     const shift = Math.round(-tx / spacing)
     const next = baseEnd.current + shift
     setWinEnd(Math.min(st.n - 1, Math.max(st.winCount - 1, next)))
   }
-
-  const pinch = useMemo(
-    () =>
-      Gesture.Pinch()
-        .onStart(() => {
-          baseCount.current = stateRef.current.winCount
-        })
-        .onUpdate(e => {
-          runOnJS(applyPinch)(e.scale)
-        })
-        .onEnd(e => {
-          if (
-            stateRef.current.granularity === 'month' &&
-            e.scale > 1.25 &&
-            onZoomToDays
-          ) {
-            runOnJS(onZoomToDays)()
-          }
-        }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [spacing, onZoomToDays]
-  )
 
   const pan = useMemo(
     () =>
@@ -172,22 +139,7 @@ export default function StatsLineChart({
     [spacing, points, onSelect]
   )
 
-  const gesture = useMemo(() => Gesture.Simultaneous(pinch, pan, tap), [pinch, pan, tap])
-
-  const resetWindow = () => {
-    if (granularity === 'month') {
-      setWinCount(n)
-      setWinEnd(n - 1)
-    } else {
-      setWinCount(Math.min(DEFAULT_DAY_WINDOW, n))
-      setWinEnd(n - 1)
-    }
-  }
-
-  const isDefaultWindow =
-    granularity === 'month'
-      ? winCount === n && winEnd === n - 1
-      : winCount === Math.min(DEFAULT_DAY_WINDOW, n) && winEnd === n - 1
+  const gesture = useMemo(() => Gesture.Simultaneous(pan, tap), [pan, tap])
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)
 
@@ -201,9 +153,13 @@ export default function StatsLineChart({
   }, [window, granularity])
 
   const showMarkers = window.length <= MARKER_LIMIT
+  const range = window.length > 0 ? rangeTitle(window[0].key, window[window.length - 1].key, granularity) : ''
 
   return (
     <View>
+      {/* Текущий видимый диапазон */}
+      <Text style={st.rangeLabel}>{range}</Text>
+
       <GestureDetector gesture={gesture}>
         <View onLayout={onLayout}>
           {width > 0 && (
@@ -285,38 +241,22 @@ export default function StatsLineChart({
                     />
                   )
                 })()}
-              {/* Прозрачная зона захвата жестов */}
-              <Rect x={0} y={0} width={width} height={HEIGHT} fill="transparent" />
             </Svg>
           )}
         </View>
       </GestureDetector>
 
-      {/* Подсказка + сброс масштаба */}
-      <View style={st.hintRow}>
-        <Text style={st.hint}>
-          {granularity === 'month'
-            ? 'Разведите пальцы — переход к дням · тап по точке — детали'
-            : 'Щипок — масштаб · свайп — прокрутка · тап по точке — детали'}
-        </Text>
-        {!isDefaultWindow && (
-          <TouchableOpacity style={st.resetBtn} onPress={resetWindow} activeOpacity={0.7}>
-            <Feather name="maximize" size={11} color={C.textSecondary} />
-            <Text style={st.resetText}>Сброс</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <Text style={st.hint}>
+        {winCount < n ? 'Свайп влево/вправо — прокрутка по времени · тап по точке — детали' : 'Тап по точке — детали'}
+      </Text>
     </View>
   )
 }
 
 const st = StyleSheet.create({
-  hintRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 },
-  hint: { flex: 1, fontSize: 10, color: C.textMuted },
-  resetBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
-    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+  rangeLabel: {
+    fontSize: 12, fontWeight: '700', color: C.textSecondary,
+    textAlign: 'center', marginBottom: 6, textTransform: 'capitalize',
   },
-  resetText: { fontSize: 10, fontWeight: '600', color: C.textSecondary },
+  hint: { fontSize: 10, color: C.textMuted, marginTop: 6 },
 })

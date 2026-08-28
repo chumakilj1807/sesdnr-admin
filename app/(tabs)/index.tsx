@@ -10,6 +10,7 @@ import { useStore } from '@/lib/store'
 import { fetchAllBookings, patchBookingFor } from '@/lib/api'
 import { getBookings, upsertBooking, updateBookingLocal } from '@/lib/db'
 import BookingCard from '@/components/BookingCard'
+import AppLogo from '@/components/AppLogo'
 import { notifyNewBooking } from '@/lib/notifications'
 
 const FILTERS = [
@@ -116,9 +117,7 @@ export default function BookingsScreen() {
     <View style={s.container}>
       {/* Header */}
       <View style={s.header}>
-        <View style={s.logoWrap}>
-          <Text style={s.logoX}>X</Text>
-        </View>
+        <AppLogo />
         <View style={{ flex: 1 }}>
           <Text style={s.appName}>Xenom Manager</Text>
           <Text style={s.title}>Заявки</Text>
@@ -246,13 +245,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
   },
-  logoWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#7C3AED', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
-  },
-  logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
   appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },

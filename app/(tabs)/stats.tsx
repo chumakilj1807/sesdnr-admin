@@ -7,12 +7,15 @@ import { useStore } from '@/lib/store'
 import { getBookings, getCallEvents, getMail, getSessions } from '@/lib/db'
 import type { Booking } from '@/lib/types'
 import StatsLineChart, { SERIES_META } from '@/components/StatsLineChart'
+import AppLogo from '@/components/AppLogo'
 import {
   buildSeries,
   bucketDetail,
+  dayKey,
   daysOfMonth,
-  lastDays,
+  daysRange,
   lastMonths,
+  localDayKey,
   monthKey,
   monthLabel,
   seriesTrend,
@@ -33,6 +36,9 @@ export function isTestBooking(b: Booking): boolean {
 
 const SERIES_IDS: SeriesId[] = ['bookings', 'calls', 'mails', 'chats']
 
+// Дневные окна (в днях) для уровней зума без фильтра по месяцу
+const DAY_WINDOWS = [90, 30, 14, 7]
+
 const KIND_ICON: Record<SeriesId, string> = {
   bookings: 'clipboard',
   calls: 'phone',
@@ -49,8 +55,10 @@ export default function StatsScreen() {
   const [siteFilter, setSiteFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
 
-  // График: обзор по месяцам или детально по дням (pinch-to-zoom)
-  const [granularity, setGranularity] = useState<Granularity>('month')
+  // График: дискретные уровни зума (кнопки-лупы).
+  // Без фильтра по месяцу: 0 — все месяцы, 1..4 — окна 90/30/14/7 дней.
+  // С фильтром по месяцу: 0 — весь месяц, 1 — 14 дней, 2 — 7 дней.
+  const [zoomLevel, setZoomLevel] = useState(0)
   const [visibleSeries, setVisibleSeries] = useState<Record<SeriesId, boolean>>({
     bookings: true,
     calls: true,
@@ -117,22 +125,49 @@ export default function StatsScreen() {
     [realBookings, calls, mails, sessions, siteFilter]
   )
 
-  // Активный фильтр по месяцу — всегда дневная гранулярность этого месяца
-  const effGranularity: Granularity = monthFilter !== 'all' ? 'day' : granularity
+  // Гранулярность: обзорный уровень (0) без фильтра — месяцы, иначе дни
+  const effGranularity: Granularity = monthFilter === 'all' && zoomLevel === 0 ? 'month' : 'day'
+
+  // Дневные ключи от первой записи до сегодня (максимум 370 дней)
+  const dayKeysAll = useMemo(() => {
+    let min = ''
+    const times = [
+      ...chartInput.bookings.map(b => b.createdAt),
+      ...chartInput.calls.map(c => c.ts),
+      ...chartInput.mails.map(m => m.date),
+      ...chartInput.sessions.map(s => s.createdAt),
+    ]
+    for (const t of times) if (t && (!min || t < min)) min = t
+    const today = new Date()
+    const todayK = localDayKey(today)
+    const capK = localDayKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 369))
+    let startK = min ? dayKey(min) : todayK
+    if (startK > todayK) startK = todayK
+    if (startK < capK) startK = capK
+    return daysRange(startK, todayK)
+  }, [chartInput])
 
   const chartKeys = useMemo(() => {
-    if (effGranularity === 'day') {
-      return monthFilter !== 'all' ? daysOfMonth(monthFilter) : lastDays(90)
-    }
-    // Обзор: последние 6 месяцев плюс все месяцы с данными (максимум 12 точек)
-    const keys = new Set(lastMonths(6))
+    // Фильтр по месяцу — дневная гранулярность внутри этого месяца
+    if (monthFilter !== 'all') return daysOfMonth(monthFilter)
+    if (effGranularity === 'day') return dayKeysAll
+    // Обзор: все месяцы с данными, минимум последние 12
+    const keys = new Set(lastMonths(12))
     for (const b of chartInput.bookings) keys.add(monthKey(b.createdAt))
     for (const c of chartInput.calls) keys.add(monthKey(c.ts))
     for (const m of chartInput.mails) keys.add(monthKey(m.date))
     for (const s of chartInput.sessions) keys.add(monthKey(s.createdAt))
     keys.delete('')
-    return [...keys].sort().slice(-12)
-  }, [effGranularity, monthFilter, chartInput])
+    return [...keys].sort()
+  }, [effGranularity, monthFilter, chartInput, dayKeysAll])
+
+  // Размер окна в точках для текущего уровня зума
+  const monthDays = monthFilter !== 'all' ? daysOfMonth(monthFilter).length : 0
+  const dayWindows = monthFilter !== 'all' ? [monthDays, 14, 7] : DAY_WINDOWS
+  const windowSize =
+    effGranularity === 'month' ? undefined : dayWindows[Math.min(zoomLevel - (monthFilter !== 'all' ? 0 : 1), dayWindows.length - 1)]
+  const canZoomIn = zoomLevel < dayWindows.length - (monthFilter !== 'all' ? 1 : 0)
+  const canZoomOut = zoomLevel > 0
 
   const points = useMemo(
     () => buildSeries(chartInput, chartKeys, effGranularity),
@@ -146,16 +181,22 @@ export default function StatsScreen() {
     [selectedKey, effGranularity, chartInput]
   )
 
-  // Смена фильтров/режима сбрасывает выбранную точку
+  // Смена фильтров/уровня зума сбрасывает выбранную точку
   useEffect(() => {
     setSelectedKey(null)
-  }, [monthFilter, effGranularity, siteFilter])
+  }, [monthFilter, effGranularity, siteFilter, zoomLevel])
 
-  const zoomToDays = useCallback(() => setGranularity('day'), [])
-  const backToMonths = useCallback(() => {
-    setGranularity('month')
-    setSelectedKey(null)
-  }, [])
+  // Смена сайта/месяца — зум обратно на обзорный уровень
+  useEffect(() => {
+    setZoomLevel(0)
+  }, [monthFilter, siteFilter])
+
+  const zoomIn = useCallback(() => {
+    if (canZoomIn) setZoomLevel(l => l + 1)
+  }, [canZoomIn])
+  const zoomOut = useCallback(() => {
+    if (canZoomOut) setZoomLevel(l => l - 1)
+  }, [canZoomOut])
   const onSelectPoint = useCallback((key: string) => {
     setSelectedKey(prev => (prev === key ? null : key))
   }, [])
@@ -180,9 +221,7 @@ export default function StatsScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={s.container}>
       <View style={s.header}>
-        <View style={s.logoWrap}>
-          <Text style={s.logoX}>X</Text>
-        </View>
+        <AppLogo />
         <View style={{ flex: 1 }}>
           <Text style={s.appName}>Xenom Manager</Text>
           <Text style={s.title}>Статистика</Text>
@@ -277,12 +316,25 @@ export default function StatsScreen() {
           <Text style={s.cardTitle}>
             {effGranularity === 'month' ? 'Динамика по месяцам' : 'Динамика по дням'}
           </Text>
-          {effGranularity === 'day' && monthFilter === 'all' && (
-            <TouchableOpacity onPress={backToMonths} activeOpacity={0.7} style={s.backBtn}>
-              <Feather name="arrow-left" size={11} color={C.primary} />
-              <Text style={s.backBtnText}>К месяцам</Text>
+          {/* Лупы: шаг по дискретным уровням зума */}
+          <View style={s.zoomBtns}>
+            <TouchableOpacity
+              onPress={zoomOut}
+              disabled={!canZoomOut}
+              style={[s.zoomBtn, !canZoomOut && s.zoomBtnOff]}
+              activeOpacity={0.7}
+            >
+              <Feather name="zoom-out" size={14} color={canZoomOut ? C.primary : C.textMuted} />
             </TouchableOpacity>
-          )}
+            <TouchableOpacity
+              onPress={zoomIn}
+              disabled={!canZoomIn}
+              style={[s.zoomBtn, !canZoomIn && s.zoomBtnOff]}
+              activeOpacity={0.7}
+            >
+              <Feather name="zoom-in" size={14} color={canZoomIn ? C.primary : C.textMuted} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Легенда: тап по чипу скрывает/показывает серию */}
@@ -318,7 +370,7 @@ export default function StatsScreen() {
             visible={visibleSeries}
             selectedKey={selectedKey}
             onSelect={onSelectPoint}
-            onZoomToDays={monthFilter === 'all' ? zoomToDays : undefined}
+            windowSize={windowSize}
           />
         ) : (
           <Text style={s.chartEmpty}>Нет данных за период</Text>
@@ -410,13 +462,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingTop: 32, paddingBottom: 16,
   },
-  logoWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#7C3AED', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
-  },
-  logoX: { fontSize: 22, fontWeight: '900', color: '#fff' },
   appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
 
@@ -450,14 +495,13 @@ const s = StyleSheet.create({
   rowCards: { flexDirection: 'row', gap: 10 },
   halfCard: { flex: 1, alignItems: 'flex-start' },
 
-  chartHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  backBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
+  chartHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  zoomBtns: { flexDirection: 'row', gap: 6 },
+  zoomBtn: {
+    width: 30, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
-    marginBottom: 8,
   },
-  backBtnText: { fontSize: 10, fontWeight: '700', color: C.primary },
+  zoomBtnOff: { opacity: 0.45 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   trendText: { fontSize: 10, fontWeight: '800' },
   chartEmpty: { fontSize: 12, color: C.textMuted, textAlign: 'center', paddingVertical: 24 },
