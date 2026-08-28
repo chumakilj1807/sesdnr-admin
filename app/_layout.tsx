@@ -3,6 +3,7 @@ import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as Notifications from 'expo-notifications'
 import * as SecureStore from 'expo-secure-store'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useStore } from '@/lib/store'
 import { setupNotifications } from '@/lib/notifications'
 import { stopChatRing, CHAT_RING_OPEN, CHAT_RING_STOP } from '@/lib/chatRing'
@@ -129,7 +130,7 @@ export default function RootLayout() {
   if (!initialized) return null
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="light" backgroundColor="#0B0F1A" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0B0F1A' } }}>
         {!settings.setupDone ? (
@@ -152,6 +153,6 @@ export default function RootLayout() {
           </>
         )}
       </Stack>
-    </>
+    </GestureHandlerRootView>
   )
 }

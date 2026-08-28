@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
@@ -6,6 +6,21 @@ import { C, STATUS_LABEL } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { getBookings, getCallEvents, getMail, getSessions } from '@/lib/db'
 import type { Booking } from '@/lib/types'
+import StatsLineChart, { SERIES_META } from '@/components/StatsLineChart'
+import {
+  buildSeries,
+  bucketDetail,
+  daysOfMonth,
+  lastDays,
+  lastMonths,
+  monthKey,
+  monthLabel,
+  seriesTrend,
+  timeOf,
+  type Granularity,
+  type SeriesId,
+  type SeriesInput,
+} from '@/lib/statsSeries'
 
 // Тестовая заявка: подстрока «тест» (регистронезависимо) в имени,
 // заметках или в любом строковом значении произвольных полей формы.
@@ -16,24 +31,13 @@ export function isTestBooking(b: Booking): boolean {
   return values.some(v => typeof v === 'string' && v.toLowerCase().includes('тест'))
 }
 
-// Ключ месяца YYYY-MM из ISO-даты
-const monthKey = (iso: string) => (iso ?? '').slice(0, 7)
+const SERIES_IDS: SeriesId[] = ['bookings', 'calls', 'mails', 'chats']
 
-function monthLabel(key: string) {
-  const [y, m] = key.split('-').map(Number)
-  if (!y || !m) return key
-  return new Date(y, m - 1, 1).toLocaleString('ru', { month: 'short' })
-}
-
-// Последние N месяцев включая текущий, ключи YYYY-MM
-function lastMonths(n: number): string[] {
-  const out: string[] = []
-  const d = new Date()
-  for (let i = n - 1; i >= 0; i--) {
-    const t = new Date(d.getFullYear(), d.getMonth() - i, 1)
-    out.push(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`)
-  }
-  return out
+const KIND_ICON: Record<SeriesId, string> = {
+  bookings: 'clipboard',
+  calls: 'phone',
+  mails: 'mail',
+  chats: 'message-circle',
 }
 
 export default function StatsScreen() {
@@ -44,6 +48,16 @@ export default function StatsScreen() {
   const [calls, setCalls] = useState<Awaited<ReturnType<typeof getCallEvents>>>([])
   const [siteFilter, setSiteFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
+
+  // График: обзор по месяцам или детально по дням (pinch-to-zoom)
+  const [granularity, setGranularity] = useState<Granularity>('month')
+  const [visibleSeries, setVisibleSeries] = useState<Record<SeriesId, boolean>>({
+    bookings: true,
+    calls: true,
+    mails: true,
+    chats: true,
+  })
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const load = async () => {
     const [b, sess, m, c] = await Promise.all([getBookings(), getSessions(), getMail(), getCallEvents()])
@@ -90,22 +104,69 @@ export default function StatsScreen() {
     cancelled: fBookings.filter(b => b.status === 'cancelled').length,
   }
 
-  // График: заявки по месяцам — последние 6 месяцев плюс ВСЕ месяцы,
-  // в которых есть заявки (по возрастанию, максимум 12 колонок)
-  const chartMonths = useMemo(() => {
-    const keys = new Set(lastMonths(6))
-    for (const b of realBookings) {
-      const k = monthKey(b.createdAt)
-      if (k) keys.add(k)
+  // Данные графика: фильтр по сайту применяется, фильтр по месяцу —
+  // переключает график на дневную гранулярность внутри этого месяца
+  const chartInput: SeriesInput = useMemo(
+    () => ({
+      bookings: realBookings.filter(b => inSite(b.siteId)),
+      calls: calls.filter(c => inSite(c.siteId)),
+      mails: mails.filter(m => inSite(m.siteId)),
+      sessions: sessions.filter(s => inSite(s.siteId)),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [realBookings, calls, mails, sessions, siteFilter]
+  )
+
+  // Активный фильтр по месяцу — всегда дневная гранулярность этого месяца
+  const effGranularity: Granularity = monthFilter !== 'all' ? 'day' : granularity
+
+  const chartKeys = useMemo(() => {
+    if (effGranularity === 'day') {
+      return monthFilter !== 'all' ? daysOfMonth(monthFilter) : lastDays(90)
     }
+    // Обзор: последние 6 месяцев плюс все месяцы с данными (максимум 12 точек)
+    const keys = new Set(lastMonths(6))
+    for (const b of chartInput.bookings) keys.add(monthKey(b.createdAt))
+    for (const c of chartInput.calls) keys.add(monthKey(c.ts))
+    for (const m of chartInput.mails) keys.add(monthKey(m.date))
+    for (const s of chartInput.sessions) keys.add(monthKey(s.createdAt))
+    keys.delete('')
     return [...keys].sort().slice(-12)
-  }, [realBookings])
-  const chartData = chartMonths.map(k => ({
-    key: k,
-    label: monthLabel(k),
-    count: realBookings.filter(b => inSite(b.siteId) && monthKey(b.createdAt) === k).length,
-  }))
-  const chartMax = Math.max(1, ...chartData.map(d => d.count))
+  }, [effGranularity, monthFilter, chartInput])
+
+  const points = useMemo(
+    () => buildSeries(chartInput, chartKeys, effGranularity),
+    [chartInput, chartKeys, effGranularity]
+  )
+  const hasChartData = points.some(p => p.total > 0)
+
+  // Детализация выбранной точки
+  const detail = useMemo(
+    () => (selectedKey ? bucketDetail(selectedKey, effGranularity, chartInput) : null),
+    [selectedKey, effGranularity, chartInput]
+  )
+
+  // Смена фильтров/режима сбрасывает выбранную точку
+  useEffect(() => {
+    setSelectedKey(null)
+  }, [monthFilter, effGranularity, siteFilter])
+
+  const zoomToDays = useCallback(() => setGranularity('day'), [])
+  const backToMonths = useCallback(() => {
+    setGranularity('month')
+    setSelectedKey(null)
+  }, [])
+  const onSelectPoint = useCallback((key: string) => {
+    setSelectedKey(prev => (prev === key ? null : key))
+  }, [])
+
+  const fmtEventTime = (ts: string) => {
+    const d = new Date(ts)
+    if (isNaN(+d)) return ''
+    const hm = timeOf(ts)
+    if (effGranularity === 'day') return hm
+    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} ${hm}`
+  }
 
   // Сводка по каждому сайту (без учёта фильтров)
   const perSite = sites.map(site => ({
@@ -210,26 +271,97 @@ export default function StatsScreen() {
         </View>
       </View>
 
-      {/* График заявок по месяцам */}
+      {/* Динамика: мультисерийный линейный график */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>Заявки по месяцам</Text>
-        <View style={s.chart}>
-          {chartData.map(d => (
-            <View key={d.key} style={s.chartCol}>
-              <Text style={s.chartVal}>{d.count > 0 ? d.count : ''}</Text>
-              <View style={s.chartBarTrack}>
-                <View
-                  style={[
-                    s.chartBar,
-                    { height: Math.max(4, Math.round((d.count / chartMax) * 120)) },
-                  ]}
-                />
-              </View>
-              <Text style={s.chartLbl}>{d.label}</Text>
-            </View>
-          ))}
+        <View style={s.chartHeader}>
+          <Text style={s.cardTitle}>
+            {effGranularity === 'month' ? 'Динамика по месяцам' : 'Динамика по дням'}
+          </Text>
+          {effGranularity === 'day' && monthFilter === 'all' && (
+            <TouchableOpacity onPress={backToMonths} activeOpacity={0.7} style={s.backBtn}>
+              <Feather name="arrow-left" size={11} color={C.primary} />
+              <Text style={s.backBtnText}>К месяцам</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Легенда: тап по чипу скрывает/показывает серию */}
+        <View style={s.chips}>
+          {SERIES_IDS.map(id => {
+            const on = visibleSeries[id]
+            const trend = seriesTrend(points, id)
+            return (
+              <TouchableOpacity
+                key={id}
+                style={[s.chip, on && { borderColor: SERIES_META[id].color + '88', backgroundColor: SERIES_META[id].color + '22' }]}
+                onPress={() => setVisibleSeries(v => ({ ...v, [id]: !v[id] }))}
+                activeOpacity={0.7}
+              >
+                <View style={[s.legendDot, { backgroundColor: on ? SERIES_META[id].color : C.textMuted }]} />
+                <Text style={[s.chipText, on && { color: SERIES_META[id].color }]}>
+                  {SERIES_META[id].label}
+                </Text>
+                {trend !== null && on && (
+                  <Text style={[s.trendText, { color: trend >= 0 ? C.success : C.error }]}>
+                    {trend >= 0 ? '▲' : '▼'} {Math.abs(trend)}%
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {hasChartData ? (
+          <StatsLineChart
+            points={points}
+            granularity={effGranularity}
+            visible={visibleSeries}
+            selectedKey={selectedKey}
+            onSelect={onSelectPoint}
+            onZoomToDays={monthFilter === 'all' ? zoomToDays : undefined}
+          />
+        ) : (
+          <Text style={s.chartEmpty}>Нет данных за период</Text>
+        )}
       </View>
+
+      {/* Детализация выбранной точки */}
+      {detail && (
+        <View style={s.card}>
+          <Text style={s.cardTitle}>{detail.title}</Text>
+          <View style={s.detailCounts}>
+            {SERIES_IDS.map(id => (
+              <View key={id} style={s.detailCountCell}>
+                <Feather name={KIND_ICON[id] as any} size={11} color={SERIES_META[id].color} />
+                <Text style={[s.detailCountNum, { color: SERIES_META[id].color }]}>
+                  {detail.counts[id]}
+                </Text>
+                <Text style={s.detailCountLbl}>{SERIES_META[id].label}</Text>
+              </View>
+            ))}
+          </View>
+          {detail.events.length === 0 ? (
+            <Text style={s.chartEmpty}>Событий нет</Text>
+          ) : (
+            detail.events.map((e, i) => (
+              <View key={`${e.ts}-${i}`} style={s.eventRow}>
+                <View style={[s.eventDot, { backgroundColor: SERIES_META[e.kind].color }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.eventText}>
+                    <Text style={s.eventTime}>{fmtEventTime(e.ts)} · </Text>
+                    {e.text}
+                  </Text>
+                  {e.sub ? (
+                    <Text style={s.eventSub} numberOfLines={1}>
+                      «{e.sub}»
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      )}
 
       {/* По сайтам */}
       {siteFilter === 'all' && perSite.length > 0 && (
@@ -290,6 +422,7 @@ const s = StyleSheet.create({
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
@@ -317,15 +450,33 @@ const s = StyleSheet.create({
   rowCards: { flexDirection: 'row', gap: 10 },
   halfCard: { flex: 1, alignItems: 'flex-start' },
 
-  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 8 },
-  chartCol: { flex: 1, alignItems: 'center' },
-  chartVal: { fontSize: 10, fontWeight: '700', color: C.textSecondary, marginBottom: 4, height: 14 },
-  chartBarTrack: { height: 120, justifyContent: 'flex-end' },
-  chartBar: {
-    width: '100%', maxWidth: 34, borderRadius: 6,
-    backgroundColor: '#7C3AED',
+  chartHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
+    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+    marginBottom: 8,
   },
-  chartLbl: { fontSize: 10, color: C.textMuted, marginTop: 6 },
+  backBtnText: { fontSize: 10, fontWeight: '700', color: C.primary },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  trendText: { fontSize: 10, fontWeight: '800' },
+  chartEmpty: { fontSize: 12, color: C.textMuted, textAlign: 'center', paddingVertical: 24 },
+
+  detailCounts: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  detailCountCell: {
+    flex: 1, backgroundColor: '#0d1420', borderRadius: 10, borderWidth: 1, borderColor: C.border,
+    paddingVertical: 8, alignItems: 'center', gap: 2,
+  },
+  detailCountNum: { fontSize: 15, fontWeight: '800' },
+  detailCountLbl: { fontSize: 9, color: C.textMuted },
+  eventRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    paddingVertical: 7, borderTopWidth: 1, borderTopColor: C.border,
+  },
+  eventDot: { width: 6, height: 6, borderRadius: 3, marginTop: 5 },
+  eventText: { fontSize: 12, color: C.text, lineHeight: 17 },
+  eventTime: { color: C.textSecondary, fontWeight: '700' },
+  eventSub: { fontSize: 11, color: C.textMuted, marginTop: 1 },
 
   siteRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
