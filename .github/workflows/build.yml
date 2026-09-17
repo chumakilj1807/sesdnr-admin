@@ -28,8 +28,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # Android SDK уже предустановлен на ubuntu-latest ($ANDROID_HOME),
+      # android-actions/setup-android@v3 падает на новых образах — не используем.
+      - name: Point Gradle at preinstalled Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Generate native Android code
         run: npx expo prebuild --platform android --clean --non-interactive
