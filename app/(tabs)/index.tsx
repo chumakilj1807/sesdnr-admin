@@ -163,7 +163,7 @@ export default function BookingsScreen() {
             onPress={() => setSiteFilter('all')}
             activeOpacity={0.7}
           >
-            <Feather name="layers" size={11} color={siteFilter === 'all' ? '#7C3AED' : C.textSecondary} />
+            <Feather name="layers" size={11} color={siteFilter === 'all' ? '#38BDF8' : C.textSecondary} />
             <Text style={[s.siteChipText, siteFilter === 'all' && s.siteChipTextActive]}>Все сайты</Text>
           </TouchableOpacity>
           {sites.map(site => {
@@ -176,7 +176,7 @@ export default function BookingsScreen() {
                 onPress={() => setSiteFilter(site.id)}
                 activeOpacity={0.7}
               >
-                <Feather name="globe" size={11} color={active ? '#7C3AED' : C.textSecondary} />
+                <Feather name="globe" size={11} color={active ? '#38BDF8' : C.textSecondary} />
                 <Text style={[s.siteChipText, active && s.siteChipTextActive]} numberOfLines={1}>
                   {site.name}
                 </Text>
@@ -240,12 +240,12 @@ export default function BookingsScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
   },
-  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
+  appName: { fontSize: 10, fontWeight: '700', color: '#38BDF8', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },
   sub: { fontSize: 12, color: C.textMuted },
@@ -253,7 +253,7 @@ const s = StyleSheet.create({
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10,
+    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
     borderWidth: 1, borderColor: `${C.error}33`,
   },
@@ -261,7 +261,7 @@ const s = StyleSheet.create({
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: C.card, marginHorizontal: 16, borderRadius: 12,
+    backgroundColor: C.card, marginHorizontal: 16, borderRadius: 14,
     borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, marginBottom: 12,
   },
   searchInput: { flex: 1, height: 44, color: C.text, fontSize: 14 },
@@ -274,14 +274,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border, maxWidth: 200,
   },
-  siteChipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  siteChipActive: { backgroundColor: 'rgba(56,189,248,0.14)', borderColor: 'rgba(56,189,248,0.45)' },
   siteChipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
-  siteChipTextActive: { color: '#7C3AED' },
+  siteChipTextActive: { color: '#38BDF8' },
   siteChipCount: {
     backgroundColor: C.border, borderRadius: 8, paddingHorizontal: 5,
     fontSize: 10, fontWeight: '700', color: C.textSecondary, marginLeft: 2,
   },
-  siteChipCountActive: { backgroundColor: '#7C3AED', color: '#fff' },
+  siteChipCountActive: { backgroundColor: '#38BDF8', color: '#fff' },
 
   filters: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 4, flexWrap: 'wrap' },
   filterBtn: {
@@ -293,7 +293,7 @@ const s = StyleSheet.create({
   filterText: { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
   filterTextActive: { color: C.primary, fontWeight: '700' },
   filterCount: {
-    backgroundColor: C.border, borderRadius: 10,
+    backgroundColor: C.border, borderRadius: 12,
     paddingHorizontal: 6, minWidth: 18, alignItems: 'center',
   },
   filterCountActive: { backgroundColor: C.primary },

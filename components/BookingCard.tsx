@@ -287,7 +287,7 @@ function InfoRow({ icon, label, value }: { icon: any; label: string; value: stri
 
 const s = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 18,
     marginBottom: 12,
     borderWidth: 1,
     flexDirection: 'row',
@@ -334,7 +334,7 @@ const s = StyleSheet.create({
   phoneBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderWidth: 1,
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
     marginBottom: 10,
   },
   phoneBtnPressed: { opacity: 0.85 },
@@ -363,7 +363,7 @@ const s = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderRadius: 10,
+    borderWidth: 1, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 9,
   },
   actionText: { fontSize: 13, fontWeight: '700' },

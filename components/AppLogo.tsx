@@ -1,13 +1,15 @@
 import { Image } from 'react-native'
 
-// Логотип XENOM (assets/logo.png — серебристый на чёрном, квадрат).
-// Используется в шапках всех экранов вместо старого фиолетового квадрата с «X».
-export default function AppLogo({ size = 44, radius }: { size?: number; radius?: number }) {
+// Логотип XENOM (assets/logo-transparent.png — прозрачный фон, без чёрной подложки).
+// Картинка широкая (~2.2:1), поэтому высота считается от заданного размера.
+export default function AppLogo({ size = 64 }: { size?: number; radius?: number }) {
+  const w = size
+  const h = Math.round(size * (235 / 512))
   return (
     <Image
-      source={require('@/assets/logo.png')}
-      style={{ width: size, height: size, borderRadius: radius ?? Math.round(size * 0.28) }}
-      resizeMode="cover"
+      source={require('@/assets/logo-transparent.png')}
+      style={{ width: w, height: h }}
+      resizeMode="contain"
     />
   )
 }

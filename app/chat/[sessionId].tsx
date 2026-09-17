@@ -201,7 +201,7 @@ export default function ChatScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: C.bg }}
+      style={{ flex: 1, backgroundColor: 'transparent' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
@@ -229,7 +229,7 @@ export default function ChatScreen() {
             {connected && !isClosed && (
               <>
                 <View style={s.headerSep} />
-                <Feather name="wifi" size={11} color="#7C3AED" />
+                <Feather name="wifi" size={11} color="#38BDF8" />
                 <Text style={s.headerConnected}>вы подключены</Text>
               </>
             )}
@@ -267,7 +267,7 @@ export default function ChatScreen() {
             return (
               <View style={s.systemRow}>
                 <View style={s.systemBubble}>
-                  <Feather name="zap" size={12} color="#7C3AED" />
+                  <Feather name="zap" size={12} color="#38BDF8" />
                   <Text style={s.systemText}>{m.text.replace(/^⚡\s*/, '')}</Text>
                   <Text style={s.systemTime}>{formatStamp(m.createdAt)}</Text>
                 </View>
@@ -362,10 +362,10 @@ const s = StyleSheet.create({
   },
   backBtn: { padding: 8, marginRight: 4 },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  appLabel: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.2, textTransform: 'uppercase' },
+  appLabel: { fontSize: 10, fontWeight: '700', color: '#38BDF8', letterSpacing: 1.2, textTransform: 'uppercase' },
   siteBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#0d1420', borderRadius: 5,
+    backgroundColor: '#101827', borderRadius: 5,
     paddingHorizontal: 6, paddingVertical: 2,
     borderWidth: 1, borderColor: C.border, maxWidth: 140,
   },
@@ -376,12 +376,12 @@ const s = StyleSheet.create({
   headerStatusDot: { width: 6, height: 6, borderRadius: 3 },
   headerSub: { fontSize: 12, color: C.success },
   headerSep: { width: 2, height: 2, borderRadius: 1, backgroundColor: C.textMuted, marginHorizontal: 3 },
-  headerConnected: { fontSize: 11, color: '#7C3AED', fontWeight: '600' },
+  headerConnected: { fontSize: 11, color: '#38BDF8', fontWeight: '600' },
 
   closeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, paddingVertical: 8,
-    backgroundColor: C.errorDim, borderRadius: 10, borderWidth: 1, borderColor: `${C.error}66`,
+    backgroundColor: C.errorDim, borderRadius: 12, borderWidth: 1, borderColor: `${C.error}66`,
   },
   closeBtnText: { color: C.error, fontSize: 12, fontWeight: '700' },
 
@@ -390,19 +390,19 @@ const s = StyleSheet.create({
   msgRowAdmin: { justifyContent: 'flex-end', flexDirection: 'row-reverse' },
 
   adminAvatar: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+    width: 32, height: 32, borderRadius: 18,
+    backgroundColor: '#38BDF8', alignItems: 'center', justifyContent: 'center',
     marginBottom: 18,
   },
   adminAvatarText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  adminName: { fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 3, textAlign: 'right' },
+  adminName: { fontSize: 11, color: '#38BDF8', fontWeight: '600', marginBottom: 3, textAlign: 'right' },
 
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleUser: {
     backgroundColor: C.card, borderBottomLeftRadius: 4,
     borderWidth: 1, borderColor: C.border,
   },
-  bubbleAdmin: { backgroundColor: '#7C3AED', borderBottomRightRadius: 4 },
+  bubbleAdmin: { backgroundColor: '#38BDF8', borderBottomRightRadius: 4 },
   msgText: { color: C.text, fontSize: 15, lineHeight: 20 },
   msgTextAdmin: { color: '#fff' },
   msgTime: { fontSize: 10, color: C.textMuted, marginTop: 4, alignSelf: 'flex-end' },
@@ -412,9 +412,9 @@ const s = StyleSheet.create({
   systemRow: { alignItems: 'center', marginVertical: 10 },
   systemBubble: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#7C3AED15', borderRadius: 10,
+    backgroundColor: '#38BDF815', borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 7,
-    borderWidth: 1, borderColor: '#7C3AED55',
+    borderWidth: 1, borderColor: '#38BDF855',
   },
   systemText: { fontSize: 12, color: '#A78BFA', fontWeight: '500' },
   systemTime: { fontSize: 10, color: '#A78BFA88', marginLeft: 4 },
@@ -432,17 +432,17 @@ const s = StyleSheet.create({
   // connect banner
   connectBanner: {
     paddingHorizontal: 16, paddingVertical: 12, gap: 10,
-    backgroundColor: '#16101f', borderTopWidth: 1, borderTopColor: '#7C3AED44',
+    backgroundColor: '#16101f', borderTopWidth: 1, borderTopColor: '#38BDF844',
   },
   connectInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   connectInfoText: { fontSize: 12, color: C.textSecondary, flex: 1 },
   connectBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#7C3AED', borderRadius: 12, paddingVertical: 12,
-    shadowColor: '#7C3AED', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: '#38BDF8', borderRadius: 14, paddingVertical: 12,
+    shadowColor: '#38BDF8', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  connectBtnDisabled: { backgroundColor: '#7C3AED66' },
+  connectBtnDisabled: { backgroundColor: '#38BDF866' },
   connectBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   inputRow: {
@@ -450,7 +450,7 @@ const s = StyleSheet.create({
     backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, gap: 10,
   },
   input: {
-    flex: 1, backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+    flex: 1, backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
     borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
     fontSize: 15, color: C.text, maxHeight: 120,
   },

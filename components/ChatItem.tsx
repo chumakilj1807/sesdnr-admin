@@ -88,7 +88,7 @@ const st = StyleSheet.create({
 
   siteTag: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#0d1420', borderRadius: 6,
+    backgroundColor: '#101827', borderRadius: 6,
     paddingHorizontal: 8, paddingVertical: 4,
     borderWidth: 1, borderColor: C.border, maxWidth: 200,
   },

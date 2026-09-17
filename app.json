@@ -9,12 +9,12 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0B0F1A"
+      "backgroundColor": "#0E1524"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#080D1A"
       },
       "package": "ru.sesdnr.admin",
       "softwareKeyboardLayoutMode": "resize",
@@ -27,7 +27,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#7C3AED"
+          "color": "#38BDF8"
         }
       ],
       "expo-task-manager",

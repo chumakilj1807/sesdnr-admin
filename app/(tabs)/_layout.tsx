@@ -11,7 +11,7 @@ function Badge({ count }: { count: number }) {
       position: 'absolute', top: -4, right: -10, minWidth: 18, height: 18,
       backgroundColor: C.error, borderRadius: 9, paddingHorizontal: 4,
       alignItems: 'center', justifyContent: 'center',
-      borderWidth: 2, borderColor: '#0D1220',
+      borderWidth: 2, borderColor: C.bgBottom,
     }}>
       <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
         {count > 99 ? '99+' : count}
@@ -28,14 +28,14 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0D1220',
+          backgroundColor: C.bgBottom,
           borderTopColor: C.border,
           borderTopWidth: 1,
           height: 64,
           paddingBottom: 8,
           paddingTop: 6,
         },
-        tabBarActiveTintColor: '#7C3AED',
+        tabBarActiveTintColor: C.accent,
         tabBarInactiveTintColor: C.textMuted,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
       }}

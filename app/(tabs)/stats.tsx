@@ -200,6 +200,14 @@ export default function StatsScreen() {
   const onSelectPoint = useCallback((key: string) => {
     setSelectedKey(prev => (prev === key ? null : key))
   }, [])
+  // Пинч-зум на графике — те же дискретные уровни, что и у кнопок-луп
+  const onZoomStep = useCallback(
+    (dir: 1 | -1) => {
+      if (dir === 1 && canZoomIn) setZoomLevel(l => l + 1)
+      if (dir === -1 && canZoomOut) setZoomLevel(l => l - 1)
+    },
+    [canZoomIn, canZoomOut]
+  )
 
   const fmtEventTime = (ts: string) => {
     const d = new Date(ts)
@@ -219,7 +227,7 @@ export default function StatsScreen() {
   }))
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={s.container}>
+    <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={s.container}>
       <View style={s.header}>
         <AppLogo />
         <View style={{ flex: 1 }}>
@@ -371,6 +379,7 @@ export default function StatsScreen() {
             selectedKey={selectedKey}
             onSelect={onSelectPoint}
             windowSize={windowSize}
+            onZoomStep={onZoomStep}
           />
         ) : (
           <Text style={s.chartEmpty}>Нет данных за период</Text>
@@ -462,21 +471,21 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingTop: 32, paddingBottom: 16,
   },
-  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
+  appName: { fontSize: 10, fontWeight: '700', color: '#38BDF8', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 18,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
-  chipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  chipActive: { backgroundColor: 'rgba(56,189,248,0.14)', borderColor: 'rgba(56,189,248,0.45)' },
   chipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
-  chipTextActive: { color: '#7C3AED' },
+  chipTextActive: { color: '#38BDF8' },
 
   card: {
-    backgroundColor: C.card, borderRadius: 16,
+    backgroundColor: C.card, borderRadius: 18,
     borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 12,
   },
   cardTitle: { fontSize: 11, color: C.textMuted, letterSpacing: 1, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8 },
@@ -486,7 +495,7 @@ const s = StyleSheet.create({
 
   statusGrid: { flexDirection: 'row', gap: 8 },
   statusCell: {
-    flex: 1, backgroundColor: '#0d1420', borderRadius: 10, borderWidth: 1, borderColor: C.border,
+    flex: 1, backgroundColor: '#101827', borderRadius: 12, borderWidth: 1, borderColor: C.border,
     paddingVertical: 10, alignItems: 'center',
   },
   statusNum: { fontSize: 16, fontWeight: '800', color: C.text },
@@ -499,7 +508,7 @@ const s = StyleSheet.create({
   zoomBtns: { flexDirection: 'row', gap: 6 },
   zoomBtn: {
     width: 30, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+    backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
   },
   zoomBtnOff: { opacity: 0.45 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
@@ -508,7 +517,7 @@ const s = StyleSheet.create({
 
   detailCounts: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   detailCountCell: {
-    flex: 1, backgroundColor: '#0d1420', borderRadius: 10, borderWidth: 1, borderColor: C.border,
+    flex: 1, backgroundColor: '#101827', borderRadius: 12, borderWidth: 1, borderColor: C.border,
     paddingVertical: 8, alignItems: 'center', gap: 2,
   },
   detailCountNum: { fontSize: 15, fontWeight: '800' },

@@ -216,7 +216,7 @@ export default function MailScreen() {
               onPress={() => setBox(b.key)}
               activeOpacity={0.7}
             >
-              <Feather name={b.icon} size={11} color={active ? '#7C3AED' : C.textSecondary} />
+              <Feather name={b.icon} size={11} color={active ? '#38BDF8' : C.textSecondary} />
               <Text style={[s.boxChipText, active && s.boxChipTextActive]}>{b.label}</Text>
             </TouchableOpacity>
           )
@@ -231,7 +231,7 @@ export default function MailScreen() {
             onPress={() => setSiteFilter('all')}
             activeOpacity={0.7}
           >
-            <Feather name="layers" size={11} color={siteFilter === 'all' ? '#7C3AED' : C.textSecondary} />
+            <Feather name="layers" size={11} color={siteFilter === 'all' ? '#38BDF8' : C.textSecondary} />
             <Text style={[s.siteChipText, siteFilter === 'all' && s.siteChipTextActive]}>Все сайты</Text>
           </TouchableOpacity>
           {sites.map(site => {
@@ -244,7 +244,7 @@ export default function MailScreen() {
                 onPress={() => setSiteFilter(site.id)}
                 activeOpacity={0.7}
               >
-                <Feather name="globe" size={11} color={active ? '#7C3AED' : C.textSecondary} />
+                <Feather name="globe" size={11} color={active ? '#38BDF8' : C.textSecondary} />
                 <Text style={[s.siteChipText, active && s.siteChipTextActive]} numberOfLines={1}>
                   {site.name}
                 </Text>
@@ -406,20 +406,20 @@ export default function MailScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 12,
   },
-  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
+  appName: { fontSize: 10, fontWeight: '700', color: '#38BDF8', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },
   sub: { fontSize: 12, color: C.textMuted },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.textMuted },
 
   composeBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 14,
+    backgroundColor: '#38BDF8', alignItems: 'center', justifyContent: 'center',
   },
 
   boxes: {
@@ -428,12 +428,12 @@ const s = StyleSheet.create({
   },
   boxChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 16,
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 18,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
-  boxChipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  boxChipActive: { backgroundColor: 'rgba(56,189,248,0.14)', borderColor: 'rgba(56,189,248,0.45)' },
   boxChipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
-  boxChipTextActive: { color: '#7C3AED' },
+  boxChipTextActive: { color: '#38BDF8' },
 
   siteFilters: {
     flexDirection: 'row', paddingHorizontal: 16, gap: 6, marginBottom: 8, flexWrap: 'wrap',
@@ -443,18 +443,18 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border, maxWidth: 200,
   },
-  siteChipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  siteChipActive: { backgroundColor: 'rgba(56,189,248,0.14)', borderColor: 'rgba(56,189,248,0.45)' },
   siteChipText: { fontSize: 12, color: C.textSecondary, fontWeight: '600' },
-  siteChipTextActive: { color: '#7C3AED' },
+  siteChipTextActive: { color: '#38BDF8' },
   siteChipCount: {
     backgroundColor: C.border, borderRadius: 8, paddingHorizontal: 5,
     fontSize: 10, fontWeight: '700', color: C.textSecondary, marginLeft: 2,
   },
-  siteChipCountActive: { backgroundColor: '#7C3AED', color: '#fff' },
+  siteChipCountActive: { backgroundColor: '#38BDF8', color: '#fff' },
 
   blocksBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginHorizontal: 16, marginBottom: 8, borderRadius: 10,
+    marginHorizontal: 16, marginBottom: 8, borderRadius: 12,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
     paddingHorizontal: 12, paddingVertical: 10,
   },
@@ -462,14 +462,14 @@ const s = StyleSheet.create({
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10,
+    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
     borderWidth: 1, borderColor: `${C.error}33`,
   },
   errorText: { color: C.error, fontSize: 13, flex: 1 },
   warnBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: C.warningDim, marginHorizontal: 16, borderRadius: 10,
+    backgroundColor: C.warningDim, marginHorizontal: 16, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
     borderWidth: 1, borderColor: `${C.warning}33`,
   },
@@ -479,9 +479,9 @@ const s = StyleSheet.create({
     backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
     padding: 14, marginBottom: 10,
   },
-  mailCardUnread: { borderColor: '#7C3AED55', backgroundColor: '#141a2e' },
+  mailCardUnread: { borderColor: '#38BDF855', backgroundColor: '#141a2e' },
   mailTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#7C3AED' },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#38BDF8' },
   mailFrom: { flex: 1, fontSize: 14, color: C.textSecondary, fontWeight: '500' },
   mailFromUnread: { color: C.text, fontWeight: '700' },
   mailDate: { fontSize: 11, color: C.textMuted },
@@ -513,7 +513,7 @@ const s = StyleSheet.create({
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    backgroundColor: C.bgSolid, borderTopLeftRadius: 20, borderTopRightRadius: 20,
     borderWidth: 1, borderColor: C.border, padding: 20, paddingBottom: 36,
   },
   modalHeader: {
@@ -524,7 +524,7 @@ const s = StyleSheet.create({
   modalEmpty: { color: C.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: 24 },
   blockRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
     padding: 12, marginBottom: 8,
   },
   blockEmail: { fontSize: 14, fontWeight: '600', color: C.text },

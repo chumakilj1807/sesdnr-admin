@@ -34,7 +34,7 @@ export default function SetupScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.bg }}
+      style={{ flex: 1, backgroundColor: 'transparent' }}
       contentContainerStyle={s.container}
       keyboardShouldPersistTaps="handled"
     >
@@ -112,20 +112,20 @@ const s = StyleSheet.create({
   logoTitle: { fontSize: 26, fontWeight: '800', color: C.text, marginBottom: 6, letterSpacing: -0.5 },
   logoSub: { fontSize: 14, color: C.textSecondary, textAlign: 'center' },
   card: {
-    backgroundColor: C.card, borderRadius: 16,
+    backgroundColor: C.card, borderRadius: 18,
     borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 16,
   },
   sectionLabel: { fontSize: 11, color: C.textMuted, letterSpacing: 1, marginBottom: 16, fontWeight: '600' },
   label: { fontSize: 14, color: C.textSecondary, marginBottom: 8 },
   input: {
-    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
     fontSize: 15, color: C.text, marginBottom: 8,
   },
   hint: { fontSize: 12, color: C.textMuted, marginBottom: 16 },
   error: { color: C.error, textAlign: 'center', marginBottom: 12, fontSize: 14 },
   btn: {
-    backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 16,
+    backgroundColor: '#38BDF8', borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', marginTop: 8, marginBottom: 40,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },

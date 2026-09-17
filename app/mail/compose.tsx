@@ -104,7 +104,7 @@ export default function MailComposeScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.bg }}
+      style={{ flex: 1, backgroundColor: 'transparent' }}
       contentContainerStyle={s.container}
       keyboardShouldPersistTaps="handled"
     >
@@ -132,11 +132,11 @@ export default function MailComposeScreen() {
                 onPress={() => setSiteId(site.id)}
                 activeOpacity={0.7}
               >
-                <Feather name="globe" size={11} color={active ? '#7C3AED' : C.textSecondary} />
+                <Feather name="globe" size={11} color={active ? '#38BDF8' : C.textSecondary} />
                 <Text style={[s.chipText, active && s.chipTextActive]} numberOfLines={1}>
                   {site.name}
                 </Text>
-                {active && <Feather name="check" size={11} color="#7C3AED" />}
+                {active && <Feather name="check" size={11} color="#38BDF8" />}
               </TouchableOpacity>
             )
           })}
@@ -221,7 +221,7 @@ const s = StyleSheet.create({
     paddingTop: 32, paddingBottom: 20,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 36, height: 36, borderRadius: 12,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -233,30 +233,30 @@ const s = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border, maxWidth: 220,
   },
-  chipActive: { backgroundColor: '#7C3AED22', borderColor: '#7C3AED88' },
+  chipActive: { backgroundColor: 'rgba(56,189,248,0.14)', borderColor: 'rgba(56,189,248,0.45)' },
   chipText: { fontSize: 13, color: C.textSecondary, fontWeight: '600' },
-  chipTextActive: { color: '#7C3AED' },
+  chipTextActive: { color: '#38BDF8' },
 
   input: {
-    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+    backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
     fontSize: 14, color: C.text, marginBottom: 16,
   },
   bodyInput: { minHeight: 160 },
 
   sendBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: C.primary, borderRadius: 10, paddingVertical: 13, marginTop: 4,
+    backgroundColor: C.primary, borderRadius: 12, paddingVertical: 13, marginTop: 4,
   },
   sendBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   draftBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
-    borderRadius: 10, paddingVertical: 12, marginTop: 10,
+    borderRadius: 12, paddingVertical: 12, marginTop: 10,
   },
   draftBtnText: { color: C.textSecondary, fontSize: 14, fontWeight: '600' },
 })

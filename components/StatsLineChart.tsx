@@ -29,9 +29,11 @@ interface Props {
   visible: Record<SeriesId, boolean>
   selectedKey: string | null
   onSelect: (key: string) => void
-  // Размер окна в точках для дневного режима (управляется кнопками-лупами).
+  // Размер окна в точках для дневного режима (управляется кнопками-лупами и пинчем).
   // Не задан — показываем всё.
   windowSize?: number
+  // Пинч-зум по графику: направление +1 (приблизить) / -1 (отдалить)
+  onZoomStep?: (dir: 1 | -1) => void
 }
 
 // «Красивый» максимум оси Y: 1, 2, 5 * 10^k не ниже реального максимума
@@ -50,6 +52,7 @@ export default function StatsLineChart({
   selectedKey,
   onSelect,
   windowSize,
+  onZoomStep,
 }: Props) {
   const [width, setWidth] = useState(0)
   // Окно просмотра: count — сколько точек видно, end — индекс правой точки
@@ -63,11 +66,22 @@ export default function StatsLineChart({
     setWinEnd(n - 1)
   }, [granularity, n])
 
-  // Размер окна: месячный режим — все точки; дневной — windowSize (лупы)
+  // Размер окна: месячный режим — все точки; дневной — windowSize.
+  // При смене размера сохраняем ЦЕНТР текущего окна — график не «скачет».
+  const prevWinCount = useRef(winCount)
   useEffect(() => {
     const target = Math.max(1, Math.min(granularity === 'month' ? n : windowSize ?? n, n))
-    setWinCount(target)
-    setWinEnd(e => Math.min(n - 1, Math.max(target - 1, e)))
+    setWinCount(prev => {
+      if (prev === target) return prev
+      // Центр старого окна сохраняем, окно симметрично растёт/сжимается
+      setWinEnd(e => {
+        const center = e - Math.floor(prev / 2)
+        const newEnd = center + Math.floor(target / 2)
+        return Math.min(n - 1, Math.max(target - 1, newEnd))
+      })
+      return target
+    })
+    prevWinCount.current = target
   }, [granularity, n, windowSize])
 
   // Рефы для колбэков жестов (worklets видят актуальные значения)
@@ -101,7 +115,7 @@ export default function StatsLineChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [window, visible, yMax, plotW])
 
-  // ── Жесты: свайп листает окно, тап выбирает точку ──────────────────────────
+  // ── Жесты: свайп листает окно, пинч меняет зум, тап выбирает точку ─────────
   const applyPan = (tx: number) => {
     const st = stateRef.current
     if (st.winCount >= st.n || spacing <= 0) return
@@ -110,11 +124,14 @@ export default function StatsLineChart({
     setWinEnd(Math.min(st.n - 1, Math.max(st.winCount - 1, next)))
   }
 
+  // Пан активируется только при явно горизонтальном движении (±16px) и
+  // мгновенно проигрывает вертикальному (±6px) — ScrollView экрана спокойно
+  // скроллится, даже если палец начал движение на графике.
   const pan = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX([-10, 10])
-        .failOffsetY([-12, 12])
+        .activeOffsetX([-16, 16])
+        .failOffsetY([-6, 6])
         .onStart(() => {
           baseEnd.current = stateRef.current.winEnd
         })
@@ -123,6 +140,28 @@ export default function StatsLineChart({
         }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [spacing]
+  )
+
+  // Пинч-зум: срабатывает один раз за жест при заметном изменении масштаба
+  const pinch = useMemo(
+    () => {
+      let fired = false
+      return Gesture.Pinch()
+        .onStart(() => {
+          fired = false
+        })
+        .onUpdate(e => {
+          if (fired) return
+          if (e.scale > 1.25) {
+            fired = true
+            if (onZoomStep) runOnJS(onZoomStep)(1)
+          } else if (e.scale < 0.8) {
+            fired = true
+            if (onZoomStep) runOnJS(onZoomStep)(-1)
+          }
+        })
+    },
+    [onZoomStep]
   )
 
   const tap = useMemo(
@@ -139,7 +178,12 @@ export default function StatsLineChart({
     [spacing, points, onSelect]
   )
 
-  const gesture = useMemo(() => Gesture.Simultaneous(pan, tap), [pan, tap])
+  // Пинч и тап могут сработать одновременно с паном, но пан проигрывает пинчу,
+  // чтобы двумя пальцами не сдвигалось окно
+  const gesture = useMemo(
+    () => Gesture.Simultaneous(tap, Gesture.Exclusive(pinch, pan)),
+    [pan, pinch, tap]
+  )
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)
 
@@ -247,7 +291,9 @@ export default function StatsLineChart({
       </GestureDetector>
 
       <Text style={st.hint}>
-        {winCount < n ? 'Свайп влево/вправо — прокрутка по времени · тап по точке — детали' : 'Тап по точке — детали'}
+        {winCount < n
+          ? 'Свайп влево/вправо — прокрутка · пинч — зум · тап по точке — детали'
+          : 'Пинч — зум · тап по точке — детали'}
       </Text>
     </View>
   )

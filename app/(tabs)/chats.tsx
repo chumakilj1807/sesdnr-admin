@@ -137,12 +137,12 @@ export default function ChatsScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
   },
-  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
+  appName: { fontSize: 10, fontWeight: '700', color: '#38BDF8', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' },
   sub: { fontSize: 12, color: C.textMuted },
@@ -150,7 +150,7 @@ const s = StyleSheet.create({
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10,
+    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
     borderWidth: 1, borderColor: `${C.error}33`,
   },

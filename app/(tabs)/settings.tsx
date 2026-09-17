@@ -141,7 +141,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.bg }}
+      style={{ flex: 1, backgroundColor: 'transparent' }}
       contentContainerStyle={s.container}
       keyboardShouldPersistTaps="handled"
     >
@@ -189,7 +189,7 @@ export default function SettingsScreen() {
               />
             ) : (
               <View style={s.siteRow}>
-                <View style={[s.siteIndicator, { backgroundColor: '#7C3AED' }]} />
+                <View style={[s.siteIndicator, { backgroundColor: '#38BDF8' }]} />
                 <View style={{ flex: 1 }}>
                   <View style={s.siteNameRow}>
                     <Text style={[s.siteName, s.siteNameActive]} numberOfLines={1}>
@@ -217,7 +217,7 @@ export default function SettingsScreen() {
           <SiteForm onSave={handleAddSite} onCancel={() => setAddingNew(false)} />
         ) : (
           <TouchableOpacity style={s.addSiteBtn} onPress={() => setAddingNew(true)} activeOpacity={0.7}>
-            <Feather name="plus" size={15} color="#7C3AED" />
+            <Feather name="plus" size={15} color="#38BDF8" />
             <Text style={s.addSiteBtnText}>Добавить сайт</Text>
           </TouchableOpacity>
         )}
@@ -247,7 +247,7 @@ export default function SettingsScreen() {
                 onValueChange={(v) =>
                   saveSettings({ notify: { ...settings.notify, [opt.key]: v } })
                 }
-                trackColor={{ false: C.border, true: '#7C3AED' }}
+                trackColor={{ false: C.border, true: '#38BDF8' }}
                 thumbColor="#fff"
               />
             </View>
@@ -295,24 +295,24 @@ const s = StyleSheet.create({
   container: { flexGrow: 1, padding: 20, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 52, paddingBottom: 20 },
   headerLogoWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: '#38BDF8', alignItems: 'center', justifyContent: 'center',
     elevation: 6,
-    shadowColor: '#7C3AED', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#38BDF8', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   headerX: { fontSize: 26, fontWeight: '900', color: '#fff' },
-  appName: { fontSize: 10, fontWeight: '700', color: '#7C3AED', letterSpacing: 1.4, textTransform: 'uppercase' },
+  appName: { fontSize: 10, fontWeight: '700', color: '#38BDF8', letterSpacing: 1.4, textTransform: 'uppercase' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.5 },
 
   card: {
-    backgroundColor: C.card, borderRadius: 16,
+    backgroundColor: C.card, borderRadius: 18,
     borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 14,
   },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   sectionIcon: {
     width: 22, height: 22, borderRadius: 6,
-    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
+    backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
     alignItems: 'center', justifyContent: 'center',
   },
   section: { fontSize: 11, color: C.textMuted, letterSpacing: 1.2, fontWeight: '700' },
@@ -320,8 +320,8 @@ const s = StyleSheet.create({
   row: { marginBottom: 16 },
   label: { fontSize: 13, color: C.textSecondary, marginBottom: 8, fontWeight: '500' },
   input: {
-    backgroundColor: '#0d1420', borderWidth: 1, borderColor: C.border,
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+    backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
     fontSize: 14, color: C.text,
   },
   hint: { fontSize: 12, color: C.textMuted, marginTop: 6, lineHeight: 16 },
@@ -329,17 +329,17 @@ const s = StyleSheet.create({
 
   saveBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: C.primary, borderRadius: 10, paddingVertical: 12,
+    backgroundColor: C.primary, borderRadius: 12, paddingVertical: 12,
   },
   saveBtnOk: { backgroundColor: C.success },
   saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   siteRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#0d1420', borderRadius: 12, padding: 12, marginBottom: 8,
+    backgroundColor: '#101827', borderRadius: 14, padding: 12, marginBottom: 8,
     borderWidth: 1, borderColor: C.border,
   },
-  siteRowActive: { borderColor: '#7C3AED55', backgroundColor: '#1a1530' },
+  siteRowActive: { borderColor: '#38BDF855', backgroundColor: '#1a1530' },
   siteIndicator: { width: 3, height: 36, borderRadius: 1.5 },
   siteNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   siteName: { fontSize: 15, fontWeight: '600', color: C.textSecondary, flexShrink: 1 },
@@ -353,17 +353,17 @@ const s = StyleSheet.create({
 
   activeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#7C3AED22', borderRadius: 5,
+    backgroundColor: 'rgba(56,189,248,0.14)', borderRadius: 5,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  activeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#7C3AED' },
-  activeChipText: { color: '#7C3AED', fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  activeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#38BDF8' },
+  activeChipText: { color: '#38BDF8', fontSize: 9, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
 
   noSites: { color: C.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: 16 },
 
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#0d1420', borderRadius: 12, padding: 12, marginBottom: 8,
+    backgroundColor: '#101827', borderRadius: 14, padding: 12, marginBottom: 8,
     borderWidth: 1, borderColor: C.border,
   },
   toggleIcon: {
@@ -376,24 +376,24 @@ const s = StyleSheet.create({
 
   addSiteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 1, borderColor: '#7C3AED88', borderRadius: 10, borderStyle: 'dashed',
+    borderWidth: 1, borderColor: 'rgba(56,189,248,0.45)', borderRadius: 12, borderStyle: 'dashed',
     paddingVertical: 12, marginTop: 4,
   },
-  addSiteBtnText: { color: '#7C3AED', fontSize: 14, fontWeight: '600' },
+  addSiteBtnText: { color: '#38BDF8', fontSize: 14, fontWeight: '600' },
 
   siteForm: {
-    backgroundColor: '#0d1420', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#7C3AED66', marginBottom: 8,
+    backgroundColor: '#101827', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#38BDF866', marginBottom: 8,
   },
   siteFormBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   btnCancel: {
-    flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10,
+    flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 12,
     paddingVertical: 10, alignItems: 'center',
   },
   btnCancelText: { color: C.textSecondary, fontSize: 14, fontWeight: '500' },
   btnSave: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#7C3AED', borderRadius: 10, paddingVertical: 10,
+    backgroundColor: '#38BDF8', borderRadius: 12, paddingVertical: 10,
   },
   btnSaveText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 

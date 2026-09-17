@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar'
 import * as Notifications from 'expo-notifications'
 import * as SecureStore from 'expo-secure-store'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { LinearGradient } from 'expo-linear-gradient'
+import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { setupNotifications } from '@/lib/notifications'
 import { stopChatRing, CHAT_RING_OPEN, CHAT_RING_STOP } from '@/lib/chatRing'
@@ -131,8 +133,15 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="light" backgroundColor="#0B0F1A" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0B0F1A' } }}>
+      {/* Монотонный тёмный фон с плавным вертикальным переходом */}
+      <LinearGradient
+        colors={[C.bgTop, C.bgBottom]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+      <StatusBar style="light" backgroundColor={C.bgTop} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
         {!settings.setupDone ? (
           <Stack.Screen name="setup" />
         ) : (

@@ -153,7 +153,7 @@ export default function MailDetailScreen() {
 
             {loadingBody && !mail.body ? (
               <View style={s.loadingWrap}>
-                <ActivityIndicator color="#7C3AED" />
+                <ActivityIndicator color="#38BDF8" />
                 <Text style={s.loadingText}>Загружаем письмо…</Text>
               </View>
             ) : (
@@ -210,7 +210,7 @@ export default function MailDetailScreen() {
           </>
         ) : (
           <View style={s.loadingWrap}>
-            <ActivityIndicator color="#7C3AED" />
+            <ActivityIndicator color="#38BDF8" />
           </View>
         )}
       </ScrollView>
@@ -219,27 +219,27 @@ export default function MailDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 36, height: 36, borderRadius: 12,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: C.text },
   replyBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#7C3AED', borderRadius: 10,
+    backgroundColor: '#38BDF8', borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 8,
   },
   replyBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 10,
+    backgroundColor: C.errorDim, marginHorizontal: 16, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
     borderWidth: 1, borderColor: `${C.error}33`,
   },
@@ -270,7 +270,7 @@ const s = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8, marginTop: 24, flexWrap: 'wrap' },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderRadius: 10,
+    borderWidth: 1, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 9,
   },
   actionText: { fontSize: 13, fontWeight: '700' },
