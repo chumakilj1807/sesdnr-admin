@@ -11,6 +11,7 @@ import { fetchAllBookings, patchBookingFor } from '@/lib/api'
 import { getBookings, upsertBooking, updateBookingLocal } from '@/lib/db'
 import BookingCard from '@/components/BookingCard'
 import AppLogo from '@/components/AppLogo'
+import ScreenGradient from '@/components/ScreenGradient'
 import { notifyNewBooking } from '@/lib/notifications'
 
 const FILTERS = [
@@ -114,7 +115,7 @@ export default function BookingsScreen() {
   const newCount = bookings.filter((b) => b.status === 'new').length
 
   return (
-    <View style={s.container}>
+    <ScreenGradient style={s.container}>
       {/* Header */}
       <View style={s.header}>
         <AppLogo />
@@ -235,7 +236,7 @@ export default function BookingsScreen() {
           </View>
         }
       />
-    </View>
+    </ScreenGradient>
   )
 }
 

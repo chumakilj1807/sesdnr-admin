@@ -8,6 +8,7 @@ import { fetchAllChats } from '@/lib/api'
 import { getSessions, upsertSession } from '@/lib/db'
 import ChatItem from '@/components/ChatItem'
 import AppLogo from '@/components/AppLogo'
+import ScreenGradient from '@/components/ScreenGradient'
 import { notifyNewMessage } from '@/lib/notifications'
 import { stopChatRing } from '@/lib/chatRing'
 
@@ -82,7 +83,7 @@ export default function ChatsScreen() {
   const closed = sessions.filter((s) => s.status === 'closed')
 
   return (
-    <View style={s.container}>
+    <ScreenGradient style={s.container}>
       <View style={s.header}>
         <AppLogo />
         <View style={{ flex: 1 }}>
@@ -132,7 +133,7 @@ export default function ChatsScreen() {
           </View>
         }
       />
-    </View>
+    </ScreenGradient>
   )
 }
 

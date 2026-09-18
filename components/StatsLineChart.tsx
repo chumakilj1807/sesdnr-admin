@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native'
+import { LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Svg, { Circle, G, Line, Polyline, Text as SvgText } from 'react-native-svg'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { runOnJS } from 'react-native-reanimated'
+import { Feather } from '@expo/vector-icons'
 import { C } from '@/constants/Colors'
 import { axisLabel, rangeTitle, type Granularity, type SeriesId, type SeriesPoint } from '@/lib/statsSeries'
 
@@ -187,6 +188,32 @@ export default function StatsLineChart({
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)
 
+  // ── Стрелки пролистывания: плавный сдвиг окна на страницу ──────────────────
+  const canPanLeft = winEnd > winCount - 1
+  const canPanRight = winEnd < n - 1
+  const animRef = useRef<number | null>(null)
+
+  const panPage = (dir: -1 | 1) => {
+    const st = stateRef.current
+    if (st.winCount >= st.n) return
+    if (animRef.current) cancelAnimationFrame(animRef.current)
+    const from = st.winEnd
+    const to = Math.min(st.n - 1, Math.max(st.winCount - 1, from + dir * st.winCount))
+    if (to === from) return
+    const DURATION = 260
+    const t0 = Date.now()
+    const step = () => {
+      const k = Math.min(1, (Date.now() - t0) / DURATION)
+      const ease = 1 - Math.pow(1 - k, 3) // easeOutCubic
+      setWinEnd(Math.round(from + (to - from) * ease))
+      if (k < 1) animRef.current = requestAnimationFrame(step)
+      else animRef.current = null
+    }
+    animRef.current = requestAnimationFrame(step)
+  }
+
+  useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current) }, [])
+
   // Подписи оси X — не больше ~7 штук, равномерно
   const xTicks = useMemo(() => {
     const maxTicks = 7
@@ -205,8 +232,7 @@ export default function StatsLineChart({
       <Text style={st.rangeLabel}>{range}</Text>
 
       <GestureDetector gesture={gesture}>
-        <View onLayout={onLayout}>
-          {width > 0 && (
+        <View onLayout={onLayout}>{width > 0 && (
             <Svg width={width} height={HEIGHT}>
               {/* Сетка и ось Y */}
               {Array.from({ length: GRID_LINES + 1 }, (_, i) => {
@@ -290,6 +316,30 @@ export default function StatsLineChart({
         </View>
       </GestureDetector>
 
+      {/* Стрелки пролистывания по бокам */}
+      {winCount < n && (
+        <View style={st.arrowsRow}>
+          <TouchableOpacity
+            style={[st.arrowBtn, !canPanLeft && st.arrowBtnOff]}
+            onPress={() => panPage(-1)}
+            disabled={!canPanLeft}
+            activeOpacity={0.7}
+            hitSlop={10}
+          >
+            <Feather name="chevron-left" size={22} color={canPanLeft ? C.accent : C.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[st.arrowBtn, !canPanRight && st.arrowBtnOff]}
+            onPress={() => panPage(1)}
+            disabled={!canPanRight}
+            activeOpacity={0.7}
+            hitSlop={10}
+          >
+            <Feather name="chevron-right" size={22} color={canPanRight ? C.accent : C.textMuted} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <Text style={st.hint}>
         {winCount < n
           ? 'Свайп влево/вправо — прокрутка · пинч — зум · тап по точке — детали'
@@ -305,4 +355,14 @@ const st = StyleSheet.create({
     textAlign: 'center', marginBottom: 6, textTransform: 'capitalize',
   },
   hint: { fontSize: 10, color: C.textMuted, marginTop: 6 },
+  arrowsRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    marginTop: 8, paddingHorizontal: 4,
+  },
+  arrowBtn: {
+    width: 44, height: 36, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
+  },
+  arrowBtnOff: { opacity: 0.4 },
 })

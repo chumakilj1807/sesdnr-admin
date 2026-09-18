@@ -9,6 +9,7 @@ import { useStore } from '@/lib/store'
 import { fetchMailDetail, moveMail, setMailBlock } from '@/lib/api'
 import { getMailById, markMailRead, saveMailBody, setMailBoxLocal } from '@/lib/db'
 import type { MailBox, MailDetail } from '@/lib/types'
+import ScreenGradient from '@/components/ScreenGradient'
 
 // Извлечь email из "Имя <email@site.ru>" → email@site.ru
 function extractEmail(from: string): string {
@@ -100,7 +101,7 @@ export default function MailDetailScreen() {
   }
 
   return (
-    <View style={s.container}>
+    <ScreenGradient style={s.container}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
           <Feather name="arrow-left" size={20} color={C.text} />
@@ -214,7 +215,7 @@ export default function MailDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenGradient>
   )
 }
 

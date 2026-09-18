@@ -15,6 +15,7 @@ import { getMail, setMailBoxLocal, upsertMail } from '@/lib/db'
 import { notifyNewMail } from '@/lib/notifications'
 import type { MailBox, MailItem, Site } from '@/lib/types'
 import AppLogo from '@/components/AppLogo'
+import ScreenGradient from '@/components/ScreenGradient'
 
 const BOXES: { key: MailBox; label: string; icon: any }[] = [
   { key: 'inbox', label: 'Входящие', icon: 'inbox' },
@@ -183,7 +184,7 @@ export default function MailScreen() {
   const filteredMails = siteFilter === 'all' ? mails : mails.filter(m => m.siteId === siteFilter)
 
   return (
-    <View style={s.container}>
+    <ScreenGradient style={s.container}>
       <View style={s.header}>
         <AppLogo />
         <View style={{ flex: 1 }}>
@@ -401,7 +402,7 @@ export default function MailScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScreenGradient>
   )
 }
 

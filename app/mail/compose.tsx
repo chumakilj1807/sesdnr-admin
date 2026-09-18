@@ -9,6 +9,7 @@ import { useStore } from '@/lib/store'
 import { deleteMailDraft, saveMailDraft, sendMail } from '@/lib/api'
 import { deleteMailLocal } from '@/lib/db'
 import type { Site } from '@/lib/types'
+import ScreenGradient from '@/components/ScreenGradient'
 
 export default function MailComposeScreen() {
   const params = useLocalSearchParams<{
@@ -103,11 +104,12 @@ export default function MailComposeScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: 'transparent' }}
-      contentContainerStyle={s.container}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScreenGradient>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: 'transparent' }}
+        contentContainerStyle={s.container}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
           <Feather name="x" size={20} color={C.text} />
@@ -210,7 +212,8 @@ export default function MailComposeScreen() {
           </>
         )}
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </ScreenGradient>
   )
 }
 

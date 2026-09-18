@@ -11,6 +11,7 @@ import { getCallEvents, markAllCallsRead, upsertCallEvent } from '@/lib/db'
 import { notifyNewCall } from '@/lib/notifications'
 import type { CallEvent, Site } from '@/lib/types'
 import AppLogo from '@/components/AppLogo'
+import ScreenGradient from '@/components/ScreenGradient'
 
 type CallRow = CallEvent & { read: boolean }
 
@@ -108,7 +109,7 @@ export default function CallsScreen() {
     sites.length > 0 && unsupported.length === sites.length && events.length === 0
 
   return (
-    <View style={s.container}>
+    <ScreenGradient style={s.container}>
       <View style={s.header}>
         <AppLogo />
         <View style={{ flex: 1 }}>
@@ -226,7 +227,7 @@ export default function CallsScreen() {
           </View>
         }
       />
-    </View>
+    </ScreenGradient>
   )
 }
 

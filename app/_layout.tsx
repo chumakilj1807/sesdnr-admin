@@ -141,7 +141,7 @@ export default function RootLayout() {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
       <StatusBar style="light" backgroundColor={C.bgTop} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bgTop } }}>
         {!settings.setupDone ? (
           <Stack.Screen name="setup" />
         ) : (

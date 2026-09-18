@@ -8,6 +8,7 @@ import { getBookings, getCallEvents, getMail, getSessions } from '@/lib/db'
 import type { Booking } from '@/lib/types'
 import StatsLineChart, { SERIES_META } from '@/components/StatsLineChart'
 import AppLogo from '@/components/AppLogo'
+import ScreenGradient from '@/components/ScreenGradient'
 import {
   buildSeries,
   bucketDetail,
@@ -227,7 +228,8 @@ export default function StatsScreen() {
   }))
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={s.container}>
+    <ScreenGradient>
+      <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={s.container}>
       <View style={s.header}>
         <AppLogo />
         <View style={{ flex: 1 }}>
@@ -331,16 +333,18 @@ export default function StatsScreen() {
               disabled={!canZoomOut}
               style={[s.zoomBtn, !canZoomOut && s.zoomBtnOff]}
               activeOpacity={0.7}
+              hitSlop={8}
             >
-              <Feather name="zoom-out" size={14} color={canZoomOut ? C.primary : C.textMuted} />
+              <Feather name="zoom-out" size={20} color={canZoomOut ? C.primary : C.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={zoomIn}
               disabled={!canZoomIn}
               style={[s.zoomBtn, !canZoomIn && s.zoomBtnOff]}
               activeOpacity={0.7}
+              hitSlop={8}
             >
-              <Feather name="zoom-in" size={14} color={canZoomIn ? C.primary : C.textMuted} />
+              <Feather name="zoom-in" size={20} color={canZoomIn ? C.primary : C.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -461,7 +465,8 @@ export default function StatsScreen() {
           <Text style={s.emptySub}>Статистика появится после первых заявок, писем и звонков</Text>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </ScreenGradient>
   )
 }
 
@@ -505,12 +510,12 @@ const s = StyleSheet.create({
   halfCard: { flex: 1, alignItems: 'flex-start' },
 
   chartHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  zoomBtns: { flexDirection: 'row', gap: 6 },
+  zoomBtns: { flexDirection: 'row', gap: 14 },
   zoomBtn: {
-    width: 30, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#101827', borderWidth: 1, borderColor: C.border,
   },
-  zoomBtnOff: { opacity: 0.45 },
+  zoomBtnOff: { opacity: 0.4 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   trendText: { fontSize: 10, fontWeight: '800' },
   chartEmpty: { fontSize: 12, color: C.textMuted, textAlign: 'center', paddingVertical: 24 },

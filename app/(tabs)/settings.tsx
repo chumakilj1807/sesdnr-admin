@@ -8,6 +8,7 @@ import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import { sendTestNotification } from '@/lib/notifications'
 import type { NotifySettings, Site } from '@/lib/types'
+import ScreenGradient from '@/components/ScreenGradient'
 
 const NOTIFY_OPTIONS: { key: keyof NotifySettings; label: string; hint: string; icon: any }[] = [
   { key: 'bookings', label: 'Заявки', hint: 'Новые заявки и обратные звонки', icon: 'clipboard' },
@@ -140,11 +141,12 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: 'transparent' }}
-      contentContainerStyle={s.container}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScreenGradient>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: 'transparent' }}
+        contentContainerStyle={s.container}
+        keyboardShouldPersistTaps="handled"
+      >
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerLogoWrap}>
@@ -287,7 +289,8 @@ export default function SettingsScreen() {
           <Text style={s.infoVal}>1.1.0</Text>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </ScreenGradient>
   )
 }
 

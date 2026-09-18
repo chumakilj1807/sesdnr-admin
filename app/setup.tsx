@@ -8,6 +8,7 @@ import { C } from '@/constants/Colors'
 import { useStore } from '@/lib/store'
 import type { Site } from '@/lib/types'
 import AppLogo from '@/components/AppLogo'
+import ScreenGradient from '@/components/ScreenGradient'
 
 export default function SetupScreen() {
   const { saveSettings, addSite } = useStore()
@@ -33,11 +34,12 @@ export default function SetupScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: 'transparent' }}
-      contentContainerStyle={s.container}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScreenGradient>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: 'transparent' }}
+        contentContainerStyle={s.container}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={s.logoArea}>
         <View style={{ marginBottom: 16 }}>
           <AppLogo size={80} radius={24} />
@@ -102,7 +104,8 @@ export default function SetupScreen() {
       <TouchableOpacity style={s.btn} onPress={handleSave} activeOpacity={0.8}>
         <Text style={s.btnText}>Начать работу →</Text>
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </ScreenGradient>
   )
 }
 

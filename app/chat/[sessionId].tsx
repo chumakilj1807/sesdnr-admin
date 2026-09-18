@@ -11,6 +11,7 @@ import { fetchMessages, sendMessage, sendTyping, closeChat } from '@/lib/api'
 import { getMessages, upsertMessage, updateSessionStatus } from '@/lib/db'
 import { stopChatRing } from '@/lib/chatRing'
 import type { Message } from '@/lib/types'
+import ScreenGradient from '@/components/ScreenGradient'
 
 export default function ChatScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>()
@@ -200,11 +201,12 @@ export default function ChatScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: 'transparent' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
+    <ScreenGradient>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: 'transparent' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={8}>
@@ -350,7 +352,8 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       )}
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ScreenGradient>
   )
 }
 
